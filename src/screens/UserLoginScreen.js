@@ -186,9 +186,11 @@ export default function UserLoginScreen() {
   if (selectedUser) {
     return (
       <SafeAreaView style={styles.container}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => setSelectedUser(null)}>
-          <Text style={styles.backText}>{txt.back}</Text>
-        </TouchableOpacity>
+        <View style={styles.pinHeader}>
+          <TouchableOpacity style={styles.backBtn} onPress={() => setSelectedUser(null)} activeOpacity={0.7}>
+            <Text style={styles.backText}>{txt.back}</Text>
+          </TouchableOpacity>
+        </View>
 
         {/* User avatar */}
         <View style={styles.avatarLarge}>
@@ -380,14 +382,23 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   // PIN view
+  pinHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingTop: 8,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0E0E8',
+    marginBottom: 8,
+  },
   backBtn: {
-    paddingTop: 12,
-    paddingBottom: 4,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
   },
   backText: {
     color: '#C2185B',
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: 16,
+    fontWeight: '700',
   },
   avatarLarge: {
     alignItems: 'center',
