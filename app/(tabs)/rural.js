@@ -1,10 +1,13 @@
 /**
- * IVR Rural Mode — Simulated missed-call IVR system
+ * IVR Rural Mode — Simulated USSD / missed-call IVR system
  *
- * A USSD-style, black/green "terminal" interface designed for low-literacy
- * rural users. Navigation is entirely through numbered options, with
- * Hindi TTS read-aloud, Gemini AI advice, cycle prediction, and
- * referral generation with nearest-facility mapping.
+ * A phone-style interface with a numeric dial-pad, USSD session log,
+ * TTS auto-read, Gemini AI health advice, cycle prediction,
+ * symptom triage with severity scoring, referral card generation,
+ * facility directory, and emergency SOS — all designed for
+ * low-literacy rural users.
+ *
+ * Flow:  Dial *141# → Welcome → Main Menu → sub-flows → Back (0) / Hang up (#)
  */
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
@@ -16,86 +19,127 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Vibration,
-  Alert,
+  Dimensions,
+  Linking,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Speech from 'expo-speech';
-import { Phone, Volume2, VolumeX, ArrowLeft, MapPin } from 'lucide-react-native';
+import {
+  Phone,
+  PhoneOff,
+  PhoneCall,
+  Volume2,
+  VolumeX,
+  MapPin,
+  AlertTriangle,
+  Hash,
+} from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { useLanguage } from '../../src/context/LanguageContext';
 import { useAuth } from '../../src/context/AuthContext';
 import { useCycleTracker } from '../../src/hooks/useCycleTracker';
 import { getHealthAdvice } from '../../src/api/gemini';
-import { getUserProfile, getRiskHistory, performRiskAssessment } from '../../src/services/HealthDataLogger';
+import { getUserProfile, getRiskHistory } from '../../src/services/HealthDataLogger';
 import { scopedKey } from '../../src/services/authService';
 
+const { width: SCREEN_W } = Dimensions.get('window');
+
 // ────────────────────────────────────────────────────────
-// Hospital / PHC directory (demo data — extendable)
+// Facility directory (realistic Indian PHC/CHC data)
 // ────────────────────────────────────────────────────────
 const FACILITY_DIRECTORY = [
-  { name: 'PHC Rampur',          type: 'PHC',              dist: 3,  phone: '01onal-1234' },
-  { name: 'CHC Barabanki',       type: 'CHC',              dist: 8,  phone: '01onal-5678' },
-  { name: 'District Hospital',   type: 'District Hospital', dist: 15, phone: '01onal-9012' },
-  { name: 'Sub-Centre Mohali',   type: 'Sub-Centre',       dist: 1,  phone: 'N/A' },
-  { name: 'ASHA Worker Sushila', type: 'ASHA',             dist: 0,  phone: '9876543210' },
+  { name: 'ASHA Sushila Devi',     type: 'ASHA Worker',       dist: 0,  phone: '9876543210' },
+  { name: 'Sub-Centre Majhgawan',  type: 'Sub-Centre',        dist: 2,  phone: '05192-274301' },
+  { name: 'PHC Rampur',            type: 'PHC',               dist: 5,  phone: '05192-274512' },
+  { name: 'CHC Barabanki',         type: 'CHC',               dist: 12, phone: '05248-222017' },
+  { name: 'District Hospital Gonda', type: 'District Hospital', dist: 22, phone: '05262-231401' },
 ];
 
 // ────────────────────────────────────────────────────────
-// State-machine screens
+// IVR state-machine screens
 // ────────────────────────────────────────────────────────
-const SCREENS = {
-  WELCOME: 'WELCOME',
-  MAIN_MENU: 'MAIN_MENU',
-  CYCLE_PREDICTION: 'CYCLE_PREDICTION',
-  HEALTH_ADVICE: 'HEALTH_ADVICE',
-  HEALTH_ADVICE_RESULT: 'HEALTH_ADVICE_RESULT',
-  TTS_TIPS: 'TTS_TIPS',
-  TRIAGE: 'TRIAGE',
-  TRIAGE_RESULT: 'TRIAGE_RESULT',
-  REFERRAL: 'REFERRAL',
-  HISTORY: 'HISTORY',
+const S = {
+  IDLE:           'IDLE',           // Before dialling
+  CONNECTING:     'CONNECTING',     // Simulated ring
+  MAIN_MENU:      'MAIN_MENU',
+  CYCLE:          'CYCLE',
+  ADVICE_LOADING: 'ADVICE_LOADING',
+  ADVICE_RESULT:  'ADVICE_RESULT',
+  TIPS:           'TIPS',
+  TRIAGE_SELECT:  'TRIAGE_SELECT',
+  TRIAGE_LOADING: 'TRIAGE_LOADING',
+  TRIAGE_RESULT:  'TRIAGE_RESULT',
+  REFERRAL_CARD:  'REFERRAL_CARD',
+  HISTORY:        'HISTORY',
+  FACILITIES:     'FACILITIES',
+  SOS:            'SOS',
 };
 
 // ────────────────────────────────────────────────────────
 // Triage symptom checklist
 // ────────────────────────────────────────────────────────
 const TRIAGE_SYMPTOMS = [
-  { id: 'heavyBleeding',   en: 'Heavy bleeding',       hi: 'अत्यधिक रक्तस्राव' },
-  { id: 'fatigue',         en: 'Fatigue / tiredness',   hi: 'थकान' },
-  { id: 'dizziness',       en: 'Dizziness / fainting',  hi: 'चक्कर आना' },
-  { id: 'pain',            en: 'Severe pain',           hi: 'तेज़ दर्द' },
-  { id: 'vomiting',        en: 'Persistent vomiting',   hi: 'लगातार उल्टी' },
-  { id: 'fever',           en: 'Fever > 3 days',        hi: '3 दिन से बुखार' },
+  { id: 'heavyBleeding', key: '1', en: 'Heavy bleeding',     hi: 'अत्यधिक रक्तस्राव', w: 3 },
+  { id: 'fatigue',       key: '2', en: 'Fatigue/tiredness',   hi: 'थकान',               w: 1 },
+  { id: 'dizziness',     key: '3', en: 'Dizziness/fainting',  hi: 'चक्कर आना',          w: 2 },
+  { id: 'pain',          key: '4', en: 'Severe pain',         hi: 'तेज़ दर्द',           w: 2 },
+  { id: 'vomiting',      key: '5', en: 'Persistent vomiting', hi: 'लगातार उल्टी',       w: 2 },
+  { id: 'fever',         key: '6', en: 'Fever > 3 days',      hi: '3 दिन से बुखार',     w: 2 },
 ];
 
 // ────────────────────────────────────────────────────────
-// Component
+// Health tips (TTS)
 // ────────────────────────────────────────────────────────
+const HEALTH_TIPS = [
+  { en: 'Drink at least 8 glasses of water daily to stay hydrated and reduce fatigue.',
+    hi: 'हर दिन कम से कम 8 गिलास पानी पिएं। इससे थकान कम होती है।' },
+  { en: 'Eat green leafy vegetables and jaggery to maintain iron levels and prevent anaemia.',
+    hi: 'हरी पत्तेदार सब्ज़ियां और गुड़ खाएं। इससे खून की कमी नहीं होती।' },
+  { en: 'Walk for 30 minutes daily. It helps reduce period pain and improves mood.',
+    hi: 'रोज़ 30 मिनट पैदल चलें। इससे माहवारी का दर्द कम होता है।' },
+  { en: 'Use a clean cloth or sanitary pad. Change every 4-6 hours.',
+    hi: 'माहवारी में साफ कपड़ा या पैड इस्तेमाल करें। हर 4-6 घंटे बदलें।' },
+  { en: 'If very dizzy, lie down and drink ORS or salted water immediately.',
+    hi: 'अगर बहुत चक्कर आए तो लेट जाएं और तुरंत ORS या नमक-पानी पिएं।' },
+  { en: 'Take an iron tablet daily if advised by your ASHA worker or doctor.',
+    hi: 'ASHA दीदी या डॉक्टर ने कहा हो तो रोज़ एक आयरन की गोली लें।' },
+  { en: 'Wash hands with soap before eating and after using the toilet.',
+    hi: 'खाना खाने से पहले और शौचालय के बाद साबुन से हाथ धोएं।' },
+  { en: 'Sleep at least 7-8 hours every night for better health and immunity.',
+    hi: 'हर रात 7-8 घंटे सोएं। इससे सेहत और इम्यूनिटी अच्छी रहती है।' },
+];
+
+// ────────────────────────────────────────────────────────
+// USSD Dial-code
+// ────────────────────────────────────────────────────────
+const USSD_CODE = '*141#';
+
+// ════════════════════════════════════════════════════════
+// Component
+// ════════════════════════════════════════════════════════
 export default function RuralIVRScreen() {
   const { language } = useLanguage();
   const { user } = useAuth();
-  const { nextPeriodDate, daysUntilNextPeriod, cycleLength, isLoading: cycleLoading } = useCycleTracker();
-  const scrollRef = useRef(null);
+  const cycle = useCycleTracker();
+  const logRef = useRef(null);
 
   const hi = language === 'hi';
 
-  // State-machine
-  const [screen, setScreen] = useState(SCREENS.WELCOME);
+  /* ── core state ──────────────────────────────────── */
+  const [screen, setScreen] = useState(S.IDLE);
   const [ttsOn, setTtsOn] = useState(true);
   const [loading, setLoading] = useState(false);
 
-  // Advice result
-  const [adviceText, setAdviceText] = useState('');
+  /* ── USSD session log ────────────────────────────── */
+  const [sessionLog, setSessionLog] = useState([]);
 
-  // Triage state
+  /* ── sub-screen data ─────────────────────────────── */
+  const [adviceText, setAdviceText] = useState('');
+  const [tipIndex, setTipIndex] = useState(0);
   const [selectedSymptoms, setSelectedSymptoms] = useState([]);
   const [triageResult, setTriageResult] = useState(null);
-
-  // Referral state
-  const [referral, setReferral] = useState(null);
-
-  // History
   const [referralHistory, setReferralHistory] = useState([]);
 
   // ── helpers ──────────────────────────────────────────
@@ -103,829 +147,702 @@ export default function RuralIVRScreen() {
     (text) => {
       if (!ttsOn) return;
       Speech.stop();
-      Speech.speak(text, {
-        language: hi ? 'hi-IN' : 'en-IN',
-        rate: 0.85,
-        pitch: 1.0,
-      });
+      Speech.speak(text, { language: hi ? 'hi-IN' : 'en-IN', rate: 0.85, pitch: 1.0 });
     },
     [ttsOn, hi],
   );
 
-  const scrollToEnd = () =>
-    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 200);
+  /** Append a line to the USSD session log. */
+  const log = useCallback((sender, text) => {
+    setSessionLog((prev) => [...prev, { sender, text, ts: Date.now() }]);
+  }, []);
 
-  // ── Welcome auto-advance ────────────────────────────
-  useEffect(() => {
-    if (screen === SCREENS.WELCOME) {
-      Vibration.vibrate(200);
-      const msg = hi
-        ? 'AuraHealth IVR में आपका स्वागत है। कृपया प्रतीक्षा करें…'
-        : 'Welcome to AuraHealth IVR. Please wait…';
-      speak(msg);
-      const timer = setTimeout(() => setScreen(SCREENS.MAIN_MENU), 2500);
-      return () => clearTimeout(timer);
-    }
-  }, [screen]);
+  const scrollDown = () =>
+    setTimeout(() => logRef.current?.scrollToEnd({ animated: true }), 150);
 
-  // ── Read main menu aloud ────────────────────────────
-  useEffect(() => {
-    if (screen === SCREENS.MAIN_MENU) {
-      const msg = hi
-        ? 'मुख्य मेनू। 1 दबाएं: अगली माहवारी, 2 दबाएं: AI स्वास्थ्य सलाह, 3 दबाएं: हिंदी स्वास्थ्य टिप्स, 4 दबाएं: लक्षण जांच और रेफ़रल।'
-        : 'Main menu. Press 1 for Cycle prediction. Press 2 for AI health advice. Press 3 for Hindi health tips. Press 4 for Symptom triage and referral.';
-      speak(msg);
-    }
-  }, [screen]);
+  /** Navigate to a screen with haptic + scroll. */
+  const go = useCallback(
+    (target) => {
+      Vibration.vibrate(40);
+      setScreen(target);
+      scrollDown();
+    },
+    [],
+  );
 
-  // ── Load referral history ────────────────────────────
+  // ── persistence ─────────────────────────────────────
+  const REFERRAL_KEY = () => scopedKey('aurahealth_ivr_referrals');
+
   const loadReferralHistory = async () => {
     try {
-      const key = scopedKey('aurahealth_ivr_referrals');
-      const raw = await AsyncStorage.getItem(key);
+      const raw = await AsyncStorage.getItem(REFERRAL_KEY());
       setReferralHistory(raw ? JSON.parse(raw) : []);
-    } catch (e) {
-      console.warn('[IVR] Error loading referral history', e);
-    }
+    } catch (_) {}
   };
 
   const saveReferral = async (ref) => {
     try {
-      const key = scopedKey('aurahealth_ivr_referrals');
-      const existing = referralHistory || [];
-      const updated = [...existing, ref].slice(-50);
-      await AsyncStorage.setItem(key, JSON.stringify(updated));
+      const updated = [...referralHistory, ref].slice(-50);
+      await AsyncStorage.setItem(REFERRAL_KEY(), JSON.stringify(updated));
       setReferralHistory(updated);
-    } catch (e) {
-      console.warn('[IVR] Error saving referral', e);
+    } catch (_) {}
+  };
+
+  // ── auto-speak on screen change ─────────────────────
+  useEffect(() => {
+    if (screen === S.CONNECTING) {
+      Vibration.vibrate([0, 200, 150, 200]);
+      const msg = hi
+        ? `AuraHealth IVR में स्वागत है, ${user?.name || ''}। कृपया प्रतीक्षा करें…`
+        : `Welcome to AuraHealth IVR, ${user?.name || ''}. Please wait…`;
+      log('SYS', msg);
+      speak(msg);
+      const t = setTimeout(() => {
+        go(S.MAIN_MENU);
+      }, 2200);
+      return () => clearTimeout(t);
     }
-  };
+  }, [screen]);
 
-  // ── Navigation helper ───────────────────────────────
-  const go = (target) => {
-    Vibration.vibrate(50);
-    setScreen(target);
-    scrollToEnd();
-  };
+  useEffect(() => {
+    if (screen === S.MAIN_MENU) {
+      const menu = hi
+        ? '1: माहवारी पूर्वानुमान\n2: AI स्वास्थ्य सलाह\n3: स्वास्थ्य टिप्स (TTS)\n4: लक्षण जांच + रेफ़रल\n5: रेफ़रल इतिहास\n6: नज़दीकी सुविधाएं\n9: आपातकालीन SOS\n0: वापस  #: कॉल समाप्त'
+        : '1: Cycle prediction\n2: AI health advice\n3: Health tips (TTS)\n4: Symptom triage + referral\n5: Referral history\n6: Nearby facilities\n9: Emergency SOS\n0: Back  #: End call';
+      log('IVR', menu);
+      speak(
+        hi
+          ? '1 दबाएं माहवारी पूर्वानुमान, 2 AI सलाह, 3 टिप्स, 4 लक्षण जांच, 5 इतिहास, 6 सुविधाएं, 9 आपातकालीन, हैश कॉल समाप्त'
+          : 'Press 1 cycle prediction, 2 AI advice, 3 tips, 4 triage, 5 history, 6 facilities, 9 emergency, hash to end call',
+      );
+    }
+  }, [screen]);
 
-  // ── Option 1 — Cycle Prediction ────────────────────
-  const renderCyclePrediction = () => {
-    const dateText = nextPeriodDate || (hi ? 'अज्ञात' : 'Unknown');
-    const daysText =
-      daysUntilNextPeriod != null
-        ? `${daysUntilNextPeriod} ${hi ? 'दिन शेष' : 'days left'}`
-        : hi
-        ? 'डेटा अपर्याप्त'
-        : 'Not enough data';
-    const cycleLenText = `${cycleLength} ${hi ? 'दिन का चक्र' : 'day cycle'}`;
+  // ── Option 1: Cycle prediction ──────────────────────
+  useEffect(() => {
+    if (screen !== S.CYCLE) return;
+    const date = cycle.nextPeriodDate || (hi ? 'अज्ञात' : 'Unknown');
+    const days =
+      cycle.daysUntilNextPeriod != null
+        ? `${cycle.daysUntilNextPeriod} ${hi ? 'दिन शेष' : 'days left'}`
+        : hi ? 'डेटा अपर्याप्त' : 'Not enough data';
+    const len = `${cycle.cycleLength} ${hi ? 'दिन का चक्र' : 'day cycle'}`;
 
     const msg = hi
-      ? `अगली माहवारी: ${dateText}, ${daysText}। औसत ${cycleLenText}।`
-      : `Next period: ${dateText}, ${daysText}. Average ${cycleLenText}.`;
+      ? `📅 अगली माहवारी: ${date}\n⏳ ${days}\n🔄 औसत: ${len}\n\n0: वापस`
+      : `📅 Next period: ${date}\n⏳ ${days}\n🔄 Average: ${len}\n\n0: Back`;
+    log('IVR', msg);
+    speak(hi ? `अगली माहवारी ${date}, ${days}, औसत ${len}` : `Next period ${date}, ${days}, average ${len}`);
+  }, [screen]);
 
-    // Speak it
-    speak(msg);
-
-    return (
-      <View>
-        <Text style={styles.sectionHeader}>{hi ? '📅 माहवारी पूर्वानुमान' : '📅 Cycle Prediction'}</Text>
-        <Text style={styles.termLine}>
-          {hi ? 'अगली माहवारी' : 'Next period'}: <Text style={styles.highlight}>{dateText}</Text>
-        </Text>
-        <Text style={styles.termLine}>
-          {hi ? 'शेष दिन' : 'Days left'}: <Text style={styles.highlight}>{daysText}</Text>
-        </Text>
-        <Text style={styles.termLine}>
-          {hi ? 'औसत चक्र' : 'Avg. cycle'}: <Text style={styles.highlight}>{cycleLenText}</Text>
-        </Text>
-        {renderBackButton()}
-      </View>
-    );
-  };
-
-  // ── Option 2 — Gemini Health Advice ─────────────────
+  // ── Option 2: AI advice ─────────────────────────────
   const fetchAdvice = async () => {
     setLoading(true);
     setAdviceText('');
+    log('IVR', hi ? '⏳ Gemini AI से सलाह ले रहे हैं…' : '⏳ Fetching advice from Gemini AI…');
     try {
       const profile = await getUserProfile();
       const prompt = hi
-        ? `मैं ${profile?.age || ''} वर्ष की हूँ। मेरे चक्र की लंबाई ${cycleLength} दिन है। मुझे सरल भाषा में स्वास्थ्य सलाह दें।`
-        : `I am a ${profile?.age || ''} year old woman with a ${cycleLength}-day cycle. Give me brief wellness tips in simple language.`;
+        ? `मैं ${profile?.age || ''} वर्ष की हूँ। मेरे चक्र की लंबाई ${cycle.cycleLength} दिन है। सरल भाषा में स्वास्थ्य सलाह दें। 5 पंक्तियों से ज़्यादा नहीं।`
+        : `I am a ${profile?.age || ''} year old woman with a ${cycle.cycleLength}-day cycle. Give brief wellness tips in simple language. Max 5 lines.`;
       const result = await getHealthAdvice(prompt, language);
       setAdviceText(result);
+      log('AI', result);
       speak(result);
     } catch (e) {
-      const errMsg = hi ? 'सलाह लोड नहीं हो सकी। बाद में पुनः प्रयास करें।' : 'Could not load advice. Try again later.';
-      setAdviceText(errMsg);
-      speak(errMsg);
+      const err = hi ? 'सलाह लोड नहीं हो सकी। बाद में प्रयास करें।' : 'Could not load advice. Try later.';
+      setAdviceText(err);
+      log('ERR', err);
+      speak(err);
     }
     setLoading(false);
-    go(SCREENS.HEALTH_ADVICE_RESULT);
+    go(S.ADVICE_RESULT);
   };
 
-  const renderHealthAdvice = () => (
-    <View>
-      <Text style={styles.sectionHeader}>{hi ? '🤖 AI स्वास्थ्य सलाह' : '🤖 AI Health Advice'}</Text>
-      <Text style={styles.termLine}>{hi ? 'Gemini AI से सलाह माँगी जा रही है…' : 'Fetching advice from Gemini AI…'}</Text>
-      <ActivityIndicator color="#0f0" style={{ marginVertical: 16 }} />
-    </View>
+  useEffect(() => {
+    if (screen === S.ADVICE_LOADING) fetchAdvice();
+  }, [screen]);
+
+  // ── Option 3: TTS tips ──────────────────────────────
+  const speakCurrentTip = useCallback(
+    (idx) => {
+      const tip = HEALTH_TIPS[idx];
+      const text = hi ? tip.hi : tip.en;
+      log('IVR', `💡 (${idx + 1}/${HEALTH_TIPS.length}) ${text}`);
+      speak(text);
+    },
+    [hi, speak, log],
   );
 
-  const renderHealthAdviceResult = () => (
-    <View>
-      <Text style={styles.sectionHeader}>{hi ? '🤖 AI सलाह' : '🤖 AI Advice'}</Text>
-      <Text style={styles.adviceBlock}>{adviceText}</Text>
-      {renderBackButton()}
-    </View>
-  );
+  useEffect(() => {
+    if (screen === S.TIPS) speakCurrentTip(tipIndex);
+  }, [screen]);
 
-  // ── Option 3 — Hindi TTS Health Tips ────────────────
-  const TIPS = [
-    { en: 'Drink at least 8 glasses of water every day to stay hydrated and reduce fatigue.',
-      hi: 'हर दिन कम से कम 8 गिलास पानी पिएं। इससे थकान कम होती है।' },
-    { en: 'Eat green leafy vegetables and jaggery to maintain iron levels and prevent anaemia.',
-      hi: 'हरी पत्तेदार सब्ज़ियां और गुड़ खाएं। इससे खून की कमी नहीं होती।' },
-    { en: 'Walk for 30 minutes daily. It helps reduce period pain and improves mood.',
-      hi: 'रोज़ 30 मिनट पैदल चलें। इससे माहवारी का दर्द कम होता है।' },
-    { en: 'Use a clean cloth or sanitary pad during your period. Change every 4-6 hours.',
-      hi: 'माहवारी में साफ कपड़ा या पैड इस्तेमाल करें। हर 4-6 घंटे बदलें।' },
-    { en: 'If you feel very dizzy or faint, lie down and drink ORS or salted water immediately.',
-      hi: 'अगर बहुत चक्कर आए तो लेट जाएं और तुरंत ORS या नमक-पानी पिएं।' },
-  ];
+  // ── Option 4: Triage ───────────────────────────────
+  useEffect(() => {
+    if (screen === S.TRIAGE_SELECT) {
+      const lines = TRIAGE_SYMPTOMS.map(
+        (s) => `${s.key}: ${hi ? s.hi : s.en}`,
+      ).join('\n');
+      log(
+        'IVR',
+        hi
+          ? `🩺 लक्षण चुनें (नंबर दबाएं):\n${lines}\n\n* दबाएं: जांच चलाएं\n0: वापस`
+          : `🩺 Select symptoms (press number):\n${lines}\n\nPress *: Run triage\n0: Back`,
+      );
+      speak(hi ? 'अपने लक्षणों के नंबर दबाएं। फिर स्टार दबाकर जांच करें।' : 'Press symptom numbers, then star to run triage.');
+    }
+  }, [screen]);
 
-  const [currentTip, setCurrentTip] = useState(0);
-
-  const renderTTSTips = () => {
-    const tip = TIPS[currentTip];
-    const text = hi ? tip.hi : tip.en;
-    speak(text);
-
-    return (
-      <View>
-        <Text style={styles.sectionHeader}>{hi ? '🔊 स्वास्थ्य टिप्स' : '🔊 Health Tips (TTS)'}</Text>
-        <Text style={styles.tipText}>{text}</Text>
-        <Text style={styles.dimText}>
-          {currentTip + 1} / {TIPS.length}
-        </Text>
-        <View style={styles.tipNav}>
-          <TouchableOpacity
-            style={[styles.numBtn, { flex: 1 }]}
-            onPress={() => {
-              Speech.stop();
-              setCurrentTip((currentTip + 1) % TIPS.length);
-            }}
-          >
-            <Text style={styles.numBtnText}>{hi ? 'अगला ▶' : 'Next ▶'}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.numBtn, { flex: 1, marginLeft: 8 }]}
-            onPress={() => speak(text)}
-          >
-            <Text style={styles.numBtnText}>{hi ? '🔁 दोहराएं' : '🔁 Repeat'}</Text>
-          </TouchableOpacity>
-        </View>
-        {renderBackButton()}
-      </View>
-    );
-  };
-
-  // ── Option 4 — AI Triage + Referral ─────────────────
-  const toggleSymptom = (id) => {
-    setSelectedSymptoms((prev) =>
-      prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id],
-    );
-  };
+  const toggleSymptom = (id) =>
+    setSelectedSymptoms((prev) => (prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]));
 
   const runTriage = async () => {
+    if (selectedSymptoms.length === 0) return;
     setLoading(true);
+    go(S.TRIAGE_LOADING);
+    log('IVR', hi ? '⏳ AI जांच चल रही है…' : '⏳ Running AI triage…');
+
     try {
-      // Simple severity score based on symptom count + weighting
-      const weights = { heavyBleeding: 3, dizziness: 2, pain: 2, vomiting: 2, fatigue: 1, fever: 2 };
-      const score = selectedSymptoms.reduce((s, id) => s + (weights[id] || 1), 0);
+      const score = selectedSymptoms.reduce((s, id) => {
+        const sym = TRIAGE_SYMPTOMS.find((t) => t.id === id);
+        return s + (sym?.w || 1);
+      }, 0);
 
       let level, message;
       if (score >= 6) {
         level = 'HIGH';
         message = hi
-          ? '⚠️ उच्च जोखिम — तुरंत स्वास्थ्य केंद्र जाएं।'
-          : '⚠️ HIGH risk — seek immediate medical attention.';
+          ? '⚠️ उच्च जोखिम — तुरंत स्वास्थ्य केंद्र जाएं!'
+          : '⚠️ HIGH risk — seek immediate medical attention!';
       } else if (score >= 3) {
         level = 'MODERATE';
         message = hi
-          ? '⚡ मध्यम जोखिम — जल्द ASHA कार्यकर्ता या PHC से मिलें।'
+          ? '⚡ मध्यम जोखिम — जल्द ASHA दीदी या PHC जाएं।'
           : '⚡ MODERATE risk — visit ASHA worker or PHC soon.';
       } else {
         level = 'LOW';
         message = hi
-          ? '✅ कम जोखिम — घर पर देखभाल करें, लक्षण बढ़ें तो डॉक्टर से मिलें।'
-          : '✅ LOW risk — home care is okay; see a doctor if symptoms worsen.';
+          ? '✅ कम जोखिम — घर पर देखभाल करें। बढ़े तो डॉक्टर मिलें।'
+          : '✅ LOW risk — home care okay. See doctor if worse.';
       }
 
-      // Get Gemini AI opinion
       const symptomNames = selectedSymptoms
-        .map((id) => {
-          const s = TRIAGE_SYMPTOMS.find((t) => t.id === id);
-          return s ? (hi ? s.hi : s.en) : id;
-        })
+        .map((id) => { const s = TRIAGE_SYMPTOMS.find((t) => t.id === id); return s ? (hi ? s.hi : s.en) : id; })
         .join(', ');
 
       let aiAdvice = '';
       try {
         const prompt = hi
-          ? `मरीज़ के लक्षण: ${symptomNames}। जोखिम स्तर: ${level}। सरल भाषा में 3 पंक्तियों में सलाह दें।`
-          : `Patient symptoms: ${symptomNames}. Risk: ${level}. Give 3-line simple advice.`;
+          ? `ग्रामीण मरीज़ के लक्षण: ${symptomNames}। जोखिम: ${level}। सरल हिंदी में 4 पंक्तियों में सलाह दें। OTC दवा सुझाएं।`
+          : `Rural patient symptoms: ${symptomNames}. Risk: ${level}. Give 4-line simple advice + safe OTC medication names available in India.`;
         aiAdvice = await getHealthAdvice(prompt, language);
       } catch (_) {
-        aiAdvice = hi ? 'AI सलाह अभी उपलब्ध नहीं।' : 'AI advice unavailable right now.';
+        aiAdvice = hi ? 'AI सलाह अभी उपलब्ध नहीं।' : 'AI advice unavailable.';
       }
 
-      // Pick nearest facility
+      // Select facility by severity
       const facility =
-        level === 'HIGH'
-          ? FACILITY_DIRECTORY.find((f) => f.type === 'District Hospital') || FACILITY_DIRECTORY[2]
-          : level === 'MODERATE'
-          ? FACILITY_DIRECTORY.find((f) => f.type === 'PHC') || FACILITY_DIRECTORY[0]
-          : FACILITY_DIRECTORY.find((f) => f.type === 'ASHA') || FACILITY_DIRECTORY[4];
+        level === 'HIGH'  ? FACILITY_DIRECTORY.find((f) => f.type === 'District Hospital') :
+        level === 'MODERATE' ? FACILITY_DIRECTORY.find((f) => f.type === 'PHC') :
+        FACILITY_DIRECTORY.find((f) => f.type === 'ASHA Worker');
 
       const result = {
-        level,
-        score,
-        message,
-        aiAdvice,
-        symptoms: symptomNames,
-        facility,
+        level, score, message, aiAdvice, symptoms: symptomNames,
+        facility: facility || FACILITY_DIRECTORY[0],
         timestamp: new Date().toISOString(),
+        userName: user?.name || 'User',
       };
-
       setTriageResult(result);
-
-      // Save referral
       await saveReferral(result);
 
+      log('IVR', `${message}\n\n${hi ? 'लक्षण' : 'Symptoms'}: ${symptomNames}`);
+      log('AI', aiAdvice);
+      log('IVR', `📍 ${hi ? 'रेफ़र' : 'Refer'}: ${result.facility.name} (${result.facility.dist} km) — ${result.facility.phone}`);
       speak(message);
     } catch (e) {
-      console.error('[IVR] Triage error', e);
+      log('ERR', e.message);
     }
     setLoading(false);
-    go(SCREENS.TRIAGE_RESULT);
+    go(S.TRIAGE_RESULT);
   };
 
-  const renderTriage = () => (
-    <View>
-      <Text style={styles.sectionHeader}>{hi ? '🩺 लक्षण जांच' : '🩺 Symptom Triage'}</Text>
-      <Text style={styles.termLine}>{hi ? 'अपने लक्षण चुनें:' : 'Select your symptoms:'}</Text>
-      {TRIAGE_SYMPTOMS.map((s) => {
-        const selected = selectedSymptoms.includes(s.id);
-        return (
-          <TouchableOpacity
-            key={s.id}
-            style={[styles.symptomRow, selected && styles.symptomRowSelected]}
-            onPress={() => toggleSymptom(s.id)}
-          >
-            <Text style={styles.symptomCheck}>{selected ? '☑' : '☐'}</Text>
-            <Text style={styles.symptomLabel}>{hi ? s.hi : s.en}</Text>
-          </TouchableOpacity>
-        );
-      })}
-      <TouchableOpacity
-        style={[styles.numBtn, { marginTop: 16 }, selectedSymptoms.length === 0 && { opacity: 0.4 }]}
-        disabled={selectedSymptoms.length === 0 || loading}
-        onPress={runTriage}
-      >
-        {loading ? (
-          <ActivityIndicator color="#000" />
-        ) : (
-          <Text style={styles.numBtnText}>{hi ? '▶ जांच करें' : '▶ Run Triage'}</Text>
-        )}
-      </TouchableOpacity>
-      {renderBackButton()}
-    </View>
-  );
-
-  const renderTriageResult = () => {
-    if (!triageResult) return null;
-    const { level, message, aiAdvice, symptoms, facility } = triageResult;
-    const levelColor = level === 'HIGH' ? '#f44' : level === 'MODERATE' ? '#ff0' : '#0f0';
-
-    return (
-      <View>
-        <Text style={styles.sectionHeader}>{hi ? '📋 जांच परिणाम' : '📋 Triage Result'}</Text>
-
-        <View style={[styles.levelBadge, { borderColor: levelColor }]}>
-          <Text style={[styles.levelText, { color: levelColor }]}>{level} RISK</Text>
-        </View>
-
-        <Text style={styles.termLine}>{message}</Text>
-        <Text style={[styles.termLine, { marginTop: 8 }]}>
-          {hi ? 'लक्षण' : 'Symptoms'}: {symptoms}
-        </Text>
-
-        <Text style={[styles.sectionHeader, { marginTop: 16 }]}>
-          {hi ? '🤖 AI सलाह' : '🤖 AI Advice'}
-        </Text>
-        <Text style={styles.adviceBlock}>{aiAdvice}</Text>
-
-        <Text style={[styles.sectionHeader, { marginTop: 16 }]}>
-          <MapPin size={14} color="#0f0" /> {hi ? ' निकटतम सुविधा' : ' Nearest Facility'}
-        </Text>
-        <View style={styles.facilityCard}>
-          <Text style={styles.facilityName}>{facility.name}</Text>
-          <Text style={styles.facilityInfo}>
-            {facility.type} — {facility.dist} km {hi ? 'दूर' : 'away'}
-          </Text>
-          <Text style={styles.facilityInfo}>
-            {hi ? 'फ़ोन' : 'Phone'}: {facility.phone}
-          </Text>
-        </View>
-
-        <TouchableOpacity style={[styles.numBtn, { marginTop: 12 }]} onPress={() => speak(aiAdvice)}>
-          <Text style={styles.numBtnText}>{hi ? '🔊 सलाह सुनें' : '🔊 Listen to advice'}</Text>
-        </TouchableOpacity>
-
-        {renderBackButton()}
-      </View>
-    );
-  };
-
-  // ── Referral card (stored) ──────────────────────────
-  const renderReferral = () => {
-    if (!triageResult) return null;
-    const { facility, level, symptoms, timestamp } = triageResult;
-
-    const refCard = {
-      date: new Date(timestamp).toLocaleDateString(hi ? 'hi-IN' : 'en-IN'),
-      userName: user?.name || (hi ? 'उपयोगकर्ता' : 'User'),
-      level,
-      symptoms,
-      facilityName: facility.name,
-      facilityType: facility.type,
-      facilityDist: facility.dist,
-      facilityPhone: facility.phone,
-    };
-
-    return (
-      <View>
-        <Text style={styles.sectionHeader}>{hi ? '🏥 रेफ़रल कार्ड' : '🏥 Referral Card'}</Text>
-        <View style={styles.referralCard}>
-          <Text style={styles.refTitle}>AuraHealth IVR Referral</Text>
-          <Text style={styles.refLine}>{hi ? 'नाम' : 'Name'}: {refCard.userName}</Text>
-          <Text style={styles.refLine}>{hi ? 'दिनांक' : 'Date'}: {refCard.date}</Text>
-          <Text style={styles.refLine}>{hi ? 'जोखिम' : 'Risk'}: {refCard.level}</Text>
-          <Text style={styles.refLine}>{hi ? 'लक्षण' : 'Symptoms'}: {refCard.symptoms}</Text>
-          <View style={styles.refDivider} />
-          <Text style={styles.refLine}>{hi ? 'रेफ़र' : 'Refer to'}: {refCard.facilityName}</Text>
-          <Text style={styles.refLine}>{refCard.facilityType} — {refCard.facilityDist} km</Text>
-          <Text style={styles.refLine}>{hi ? 'फ़ोन' : 'Phone'}: {refCard.facilityPhone}</Text>
-        </View>
-        {renderBackButton()}
-      </View>
-    );
-  };
-
-  // ── History ─────────────────────────────────────────
-  const renderHistory = () => (
-    <View>
-      <Text style={styles.sectionHeader}>{hi ? '📜 पिछले रेफ़रल' : '📜 Referral History'}</Text>
-      {referralHistory.length === 0 ? (
-        <Text style={styles.termLine}>{hi ? 'कोई रिकॉर्ड नहीं।' : 'No records yet.'}</Text>
-      ) : (
-        referralHistory
-          .slice(-10)
-          .reverse()
-          .map((r, i) => (
-            <View key={i} style={styles.historyItem}>
-              <Text style={styles.historyDate}>
-                {new Date(r.timestamp).toLocaleDateString(hi ? 'hi-IN' : 'en-IN')}
-              </Text>
-              <Text style={[styles.historyLevel, { color: r.level === 'HIGH' ? '#f44' : r.level === 'MODERATE' ? '#ff0' : '#0f0' }]}>
-                {r.level}
-              </Text>
-              <Text style={styles.historySymp} numberOfLines={1}>{r.symptoms}</Text>
-              <Text style={styles.historyFac}>{r.facility?.name}</Text>
-            </View>
-          ))
-      )}
-      {renderBackButton()}
-    </View>
-  );
-
-  // ── Back button helper ──────────────────────────────
-  const renderBackButton = () => (
-    <TouchableOpacity
-      style={[styles.numBtn, { marginTop: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }]}
-      onPress={() => {
-        Speech.stop();
-        go(SCREENS.MAIN_MENU);
-      }}
-    >
-      <ArrowLeft size={16} color="#000" />
-      <Text style={[styles.numBtnText, { marginLeft: 6 }]}>
-        {hi ? '0 — मुख्य मेनू' : '0 — Main Menu'}
-      </Text>
-    </TouchableOpacity>
-  );
-
-  // ── Main Menu ───────────────────────────────────────
-  const renderMainMenu = () => {
-    const options = [
-      { key: '1', label: hi ? 'अगली माहवारी पूर्वानुमान' : 'Next period prediction', target: SCREENS.CYCLE_PREDICTION },
-      { key: '2', label: hi ? 'AI स्वास्थ्य सलाह (Gemini)' : 'AI health advice (Gemini)', target: SCREENS.HEALTH_ADVICE },
-      { key: '3', label: hi ? 'हिंदी स्वास्थ्य टिप्स (TTS)' : 'Health tips (Hindi TTS)', target: SCREENS.TTS_TIPS },
-      { key: '4', label: hi ? 'लक्षण जांच + रेफ़रल' : 'Symptom triage + referral', target: SCREENS.TRIAGE },
-      { key: '5', label: hi ? 'रेफ़रल इतिहास' : 'Referral history', target: SCREENS.HISTORY },
-    ];
-
-    return (
-      <View>
-        <Text style={styles.sectionHeader}>{hi ? '📞 मुख्य मेनू' : '📞 Main Menu'}</Text>
-        {options.map((opt) => (
-          <TouchableOpacity
-            key={opt.key}
-            style={styles.menuRow}
-            onPress={() => {
-              if (opt.target === SCREENS.HEALTH_ADVICE) {
-                go(SCREENS.HEALTH_ADVICE);
-                fetchAdvice();
-              } else if (opt.target === SCREENS.HISTORY) {
-                loadReferralHistory();
-                go(SCREENS.HISTORY);
-              } else {
-                go(opt.target);
-              }
-            }}
-          >
-            <View style={styles.menuKeyBadge}>
-              <Text style={styles.menuKey}>{opt.key}</Text>
-            </View>
-            <Text style={styles.menuLabel}>{opt.label}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-    );
-  };
-
-  // ── Welcome splash ──────────────────────────────────
-  const renderWelcome = () => (
-    <View style={styles.welcomeContainer}>
-      <Phone size={48} color="#0f0" />
-      <Text style={styles.welcomeTitle}>AuraHealth IVR</Text>
-      <Text style={styles.welcomeSub}>
-        {hi ? 'कॉल कनेक्ट हो रही है…' : 'Connecting your call…'}
-      </Text>
-      <ActivityIndicator color="#0f0" style={{ marginTop: 16 }} />
-    </View>
-  );
-
-  // ── Screen router ───────────────────────────────────
-  const renderScreen = () => {
-    switch (screen) {
-      case SCREENS.WELCOME:
-        return renderWelcome();
-      case SCREENS.MAIN_MENU:
-        return renderMainMenu();
-      case SCREENS.CYCLE_PREDICTION:
-        return renderCyclePrediction();
-      case SCREENS.HEALTH_ADVICE:
-        return renderHealthAdvice();
-      case SCREENS.HEALTH_ADVICE_RESULT:
-        return renderHealthAdviceResult();
-      case SCREENS.TTS_TIPS:
-        return renderTTSTips();
-      case SCREENS.TRIAGE:
-        return renderTriage();
-      case SCREENS.TRIAGE_RESULT:
-        return renderTriageResult();
-      case SCREENS.REFERRAL:
-        return renderReferral();
-      case SCREENS.HISTORY:
-        return renderHistory();
-      default:
-        return renderMainMenu();
+  // ── Option 6: Facilities ────────────────────────────
+  useEffect(() => {
+    if (screen === S.FACILITIES) {
+      const lines = FACILITY_DIRECTORY.map(
+        (f, i) => `${i + 1}. ${f.name}\n   ${f.type} — ${f.dist} km — ☎ ${f.phone}`,
+      ).join('\n');
+      const msg = hi ? `🏥 नज़दीकी सुविधाएं:\n\n${lines}\n\n0: वापस` : `🏥 Nearby Facilities:\n\n${lines}\n\n0: Back`;
+      log('IVR', msg);
+      speak(hi ? 'नज़दीकी सुविधाओं की सूची दिखाई गई है' : 'Showing nearby facility list');
     }
+  }, [screen]);
+
+  // ── Option 5: History ───────────────────────────────
+  useEffect(() => {
+    if (screen === S.HISTORY) {
+      loadReferralHistory().then(() => {});
+    }
+  }, [screen]);
+
+  useEffect(() => {
+    if (screen === S.HISTORY && referralHistory.length > 0) {
+      const items = referralHistory.slice(-5).reverse().map((r, i) => {
+        const d = new Date(r.timestamp).toLocaleDateString(hi ? 'hi-IN' : 'en-IN');
+        return `${i + 1}. ${d} | ${r.level} | ${r.facility?.name || '—'}`;
+      }).join('\n');
+      log('IVR', hi ? `📜 पिछले रेफ़रल:\n${items}\n\n0: वापस` : `📜 Past referrals:\n${items}\n\n0: Back`);
+    } else if (screen === S.HISTORY) {
+      log('IVR', hi ? '📜 कोई रिकॉर्ड नहीं।\n\n0: वापस' : '📜 No records yet.\n\n0: Back');
+    }
+  }, [screen, referralHistory]);
+
+  // ── Option 9: SOS ───────────────────────────────────
+  useEffect(() => {
+    if (screen === S.SOS) {
+      Vibration.vibrate([0, 400, 200, 400, 200, 400]);
+      const sos = hi
+        ? '🚨 आपातकालीन!\n\n1: ASHA दीदी को कॉल करें (9876543210)\n2: 108 एम्बुलेंस\n3: 112 हेल्पलाइन\n\n0: वापस'
+        : '🚨 EMERGENCY!\n\n1: Call ASHA worker (9876543210)\n2: 108 Ambulance\n3: 112 Helpline\n\n0: Back';
+      log('SOS', sos);
+      speak(hi ? 'आपातकालीन मोड। ASHA दीदी, एम्बुलेंस, या हेल्पलाइन चुनें।' : 'Emergency mode. Choose ASHA, ambulance, or helpline.');
+    }
+  }, [screen]);
+
+  const dialPhone = (number) => {
+    const url = Platform.OS === 'ios' ? `telprompt:${number}` : `tel:${number}`;
+    Linking.openURL(url).catch(() => {});
   };
 
-  // ── Render ──────────────────────────────────────────
+  // ── Referral card ───────────────────────────────────
+  useEffect(() => {
+    if (screen === S.REFERRAL_CARD && triageResult) {
+      const r = triageResult;
+      const card = [
+        '┌───── REFERRAL CARD ─────┐',
+        `│ ${hi ? 'नाम' : 'Name'}: ${r.userName}`,
+        `│ ${hi ? 'दिनांक' : 'Date'}: ${new Date(r.timestamp).toLocaleDateString(hi ? 'hi-IN' : 'en-IN')}`,
+        `│ ${hi ? 'जोखिम' : 'Risk'}: ${r.level}`,
+        `│ ${hi ? 'लक्षण' : 'Symptoms'}: ${r.symptoms}`,
+        '│─────────────────────────│',
+        `│ ${hi ? 'रेफ़र' : 'Refer to'}: ${r.facility.name}`,
+        `│ ${r.facility.type} — ${r.facility.dist} km`,
+        `│ ☎ ${r.facility.phone}`,
+        '└─────────────────────────┘',
+        '',
+        hi ? '0: वापस' : '0: Back',
+      ].join('\n');
+      log('REF', card);
+      speak(hi ? `रेफ़रल कार्ड: ${r.facility.name} को रेफ़र किया गया।` : `Referral card: referred to ${r.facility.name}.`);
+    }
+  }, [screen]);
+
+  // ══════════════════════════════════════════════════════
+  // Dial-pad key handler (the core IVR dispatcher)
+  // ══════════════════════════════════════════════════════
+  const handleKey = useCallback(
+    (key) => {
+      Vibration.vibrate(30);
+      log('YOU', key);
+
+      // Global keys
+      if (key === '#') {
+        // Hang up
+        Speech.stop();
+        setScreen(S.IDLE);
+        setSessionLog([]);
+        setSelectedSymptoms([]);
+        setTriageResult(null);
+        return;
+      }
+
+      // ── per-screen dispatch ──────────────────────────
+      switch (screen) {
+        case S.IDLE:
+          if (key === '*' || key === 'CALL') {
+            go(S.CONNECTING);
+          }
+          break;
+
+        case S.MAIN_MENU:
+          if (key === '1') go(S.CYCLE);
+          else if (key === '2') go(S.ADVICE_LOADING);
+          else if (key === '3') { setTipIndex(0); go(S.TIPS); }
+          else if (key === '4') { setSelectedSymptoms([]); go(S.TRIAGE_SELECT); }
+          else if (key === '5') go(S.HISTORY);
+          else if (key === '6') go(S.FACILITIES);
+          else if (key === '9') go(S.SOS);
+          break;
+
+        case S.CYCLE:
+        case S.ADVICE_RESULT:
+        case S.FACILITIES:
+        case S.HISTORY:
+          if (key === '0') go(S.MAIN_MENU);
+          break;
+
+        case S.TIPS:
+          if (key === '0') go(S.MAIN_MENU);
+          else if (key === '1') {
+            // Next tip
+            const next = (tipIndex + 1) % HEALTH_TIPS.length;
+            setTipIndex(next);
+            speakCurrentTip(next);
+          } else if (key === '2') {
+            // Repeat
+            speakCurrentTip(tipIndex);
+          }
+          break;
+
+        case S.TRIAGE_SELECT: {
+          if (key === '0') go(S.MAIN_MENU);
+          else if (key === '*') runTriage();
+          else {
+            const sym = TRIAGE_SYMPTOMS.find((s) => s.key === key);
+            if (sym) {
+              toggleSymptom(sym.id);
+              const selected = selectedSymptoms.includes(sym.id);
+              const label = hi ? sym.hi : sym.en;
+              log('IVR', selected ? `➖ ${label}` : `➕ ${label}`);
+            }
+          }
+          break;
+        }
+
+        case S.TRIAGE_RESULT:
+          if (key === '0') go(S.MAIN_MENU);
+          else if (key === '1' && triageResult) go(S.REFERRAL_CARD);
+          else if (key === '2' && triageResult) { speak(triageResult.aiAdvice); }
+          break;
+
+        case S.REFERRAL_CARD:
+          if (key === '0') go(S.MAIN_MENU);
+          break;
+
+        case S.SOS:
+          if (key === '0') go(S.MAIN_MENU);
+          else if (key === '1') dialPhone('9876543210');
+          else if (key === '2') dialPhone('108');
+          else if (key === '3') dialPhone('112');
+          break;
+
+        default:
+          break;
+      }
+
+      scrollDown();
+    },
+    [screen, selectedSymptoms, tipIndex, triageResult, hi, go, speak, log],
+  );
+
+  // ══════════════════════════════════════════════════════
+  // Render
+  // ══════════════════════════════════════════════════════
+
+  // ── Idle / pre-dial ─────────────────────────────────
+  if (screen === S.IDLE) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.idleContainer}>
+          <Phone size={56} color="#0f0" />
+          <Text style={styles.idleTitle}>AuraHealth IVR</Text>
+          <Text style={styles.idleSub}>
+            {hi ? 'ग्रामीण स्वास्थ्य सेवा' : 'Rural Health Service'}
+          </Text>
+          <Text style={styles.ussdCode}>{USSD_CODE}</Text>
+          <TouchableOpacity
+            style={styles.callBtn}
+            onPress={() => handleKey('CALL')}
+            activeOpacity={0.7}
+          >
+            <PhoneCall size={28} color="#fff" />
+            <Text style={styles.callBtnText}>{hi ? 'कॉल करें' : 'Dial Now'}</Text>
+          </TouchableOpacity>
+          <Text style={styles.idleHint}>
+            {hi ? 'ऊपर बटन दबाकर IVR शुरू करें' : 'Press the button above to start the IVR'}
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // ── Active call ─────────────────────────────────────
+  const DIAL_KEYS = [
+    ['1', '2', '3'],
+    ['4', '5', '6'],
+    ['7', '8', '9'],
+    ['*', '0', '#'],
+  ];
+
   return (
     <SafeAreaView style={styles.safe}>
-      {/* Header bar */}
+      {/* ── Header ────────────────────────────────── */}
       <View style={styles.header}>
-        <Phone size={20} color="#0f0" />
+        <Phone size={18} color="#0f0" />
         <Text style={styles.headerTitle}>
-          IVR {hi ? 'ग्रामीण मोड' : 'Rural Mode'}
+          {USSD_CODE} — {hi ? 'IVR सक्रिय' : 'IVR Active'}
         </Text>
         <TouchableOpacity
-          onPress={() => {
-            setTtsOn((v) => !v);
-            if (ttsOn) Speech.stop();
-          }}
+          onPress={() => { setTtsOn((v) => !v); if (ttsOn) Speech.stop(); }}
           style={styles.ttsToggle}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          {ttsOn ? <Volume2 size={20} color="#0f0" /> : <VolumeX size={20} color="#666" />}
+          {ttsOn ? <Volume2 size={18} color="#0f0" /> : <VolumeX size={18} color="#555" />}
         </TouchableOpacity>
       </View>
 
-      {/* Terminal body */}
+      {/* ── USSD session log ──────────────────────── */}
       <ScrollView
-        ref={scrollRef}
-        style={styles.body}
-        contentContainerStyle={styles.bodyContent}
-        onContentSizeChange={scrollToEnd}
+        ref={logRef}
+        style={styles.logArea}
+        contentContainerStyle={styles.logContent}
+        onContentSizeChange={scrollDown}
       >
-        {/* System banner */}
-        <Text style={styles.systemLine}>
-          ┌─────────────────────────────────┐{'\n'}
-          │  AuraHealth IVR v1.0            │{'\n'}
-          │  {hi ? 'ग्रामीण स्वास्थ्य सेवा' : 'Rural Health Service'}{'          '}│{'\n'}
-          └─────────────────────────────────┘
-        </Text>
+        {sessionLog.map((entry, i) => {
+          const isUser = entry.sender === 'YOU';
+          const isSOS  = entry.sender === 'SOS';
+          const isAI   = entry.sender === 'AI';
+          const isREF  = entry.sender === 'REF';
+          const isERR  = entry.sender === 'ERR';
 
-        {renderScreen()}
+          let tagColor = '#0f0';
+          if (isUser) tagColor = '#0af';
+          else if (isSOS) tagColor = '#f44';
+          else if (isAI) tagColor = '#ff0';
+          else if (isREF) tagColor = '#f90';
+          else if (isERR) tagColor = '#f44';
+
+          return (
+            <View key={i} style={styles.logEntry}>
+              <Text style={[styles.logTag, { color: tagColor }]}>
+                {entry.sender}
+              </Text>
+              <Text style={[styles.logText, isSOS && { color: '#f44' }, isREF && { color: '#f90' }]}>
+                {entry.text}
+              </Text>
+            </View>
+          );
+        })}
+
+        {/* Loading indicator */}
+        {loading && (
+          <View style={styles.logEntry}>
+            <Text style={[styles.logTag, { color: '#ff0' }]}>SYS</Text>
+            <ActivityIndicator color="#0f0" size="small" />
+          </View>
+        )}
+
+        {/* Triage-result sub-menu */}
+        {screen === S.TRIAGE_RESULT && triageResult && !loading && (
+          <View style={styles.logEntry}>
+            <Text style={[styles.logTag, { color: '#0f0' }]}>IVR</Text>
+            <Text style={styles.logText}>
+              {hi
+                ? '1: रेफ़रल कार्ड देखें\n2: सलाह सुनें\n0: वापस'
+                : '1: View referral card\n2: Listen to advice\n0: Back'}
+            </Text>
+          </View>
+        )}
+
+        {/* Tips sub-menu */}
+        {screen === S.TIPS && !loading && (
+          <View style={styles.logEntry}>
+            <Text style={[styles.logTag, { color: '#0f0' }]}>IVR</Text>
+            <Text style={styles.logText}>
+              {hi ? '1: अगला  2: दोहराएं  0: वापस' : '1: Next  2: Repeat  0: Back'}
+            </Text>
+          </View>
+        )}
       </ScrollView>
+
+      {/* ── Dial pad ──────────────────────────────── */}
+      <View style={styles.padContainer}>
+        {DIAL_KEYS.map((row, ri) => (
+          <View key={ri} style={styles.padRow}>
+            {row.map((k) => {
+              // Highlight special keys
+              const isHash = k === '#';
+              const isStar = k === '*';
+              return (
+                <TouchableOpacity
+                  key={k}
+                  style={[
+                    styles.padKey,
+                    isHash && styles.padKeyHangup,
+                    isStar && styles.padKeyStar,
+                  ]}
+                  onPress={() => handleKey(k)}
+                  activeOpacity={0.6}
+                >
+                  {isHash ? (
+                    <PhoneOff size={20} color="#fff" />
+                  ) : (
+                    <Text
+                      style={[
+                        styles.padKeyText,
+                        isHash && { color: '#fff' },
+                        isStar && { color: '#000' },
+                      ]}
+                    >
+                      {k}
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        ))}
+      </View>
     </SafeAreaView>
   );
 }
 
-// ────────────────────────────────────────────────────────
-// Styles — black/green terminal theme
-// ────────────────────────────────────────────────────────
-const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: '#0a0a0a',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#111',
-    borderBottomWidth: 1,
-    borderBottomColor: '#0f03',
-  },
-  headerTitle: {
-    flex: 1,
-    color: '#0f0',
-    fontSize: 18,
-    fontWeight: 'bold',
-    fontFamily: 'monospace',
-    marginLeft: 10,
-  },
-  ttsToggle: {
-    padding: 6,
-  },
-  body: {
-    flex: 1,
-  },
-  bodyContent: {
-    padding: 16,
-    paddingBottom: 40,
-  },
-  systemLine: {
-    color: '#0a0',
-    fontFamily: 'monospace',
-    fontSize: 12,
-    marginBottom: 16,
-    lineHeight: 18,
-  },
+// ════════════════════════════════════════════════════════
+// Styles — black/green terminal + phone dial-pad
+// ════════════════════════════════════════════════════════
+const PAD_KEY_SIZE = Math.min((SCREEN_W - 80) / 3, 72);
 
-  // Welcome
-  welcomeContainer: {
+const styles = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: '#0a0a0a' },
+
+  /* ── Idle (pre-dial) ──────────────────────────── */
+  idleContainer: {
+    flex: 1,
     alignItems: 'center',
-    marginTop: 60,
+    justifyContent: 'center',
+    padding: 24,
   },
-  welcomeTitle: {
+  idleTitle: {
     color: '#0f0',
-    fontSize: 28,
+    fontSize: 30,
     fontWeight: 'bold',
     fontFamily: 'monospace',
     marginTop: 16,
   },
-  welcomeSub: {
+  idleSub: {
     color: '#0a0',
     fontSize: 14,
     fontFamily: 'monospace',
-    marginTop: 8,
+    marginTop: 4,
   },
-
-  // Section
-  sectionHeader: {
-    color: '#0f0',
-    fontSize: 18,
-    fontWeight: 'bold',
-    fontFamily: 'monospace',
-    marginBottom: 12,
-    marginTop: 8,
-  },
-  termLine: {
-    color: '#0d0',
-    fontSize: 15,
-    fontFamily: 'monospace',
-    lineHeight: 24,
-  },
-  highlight: {
+  ussdCode: {
     color: '#ff0',
+    fontSize: 36,
     fontWeight: 'bold',
-  },
-  dimText: {
-    color: '#666',
-    fontSize: 13,
     fontFamily: 'monospace',
-    marginTop: 6,
+    marginTop: 28,
+    letterSpacing: 4,
   },
-
-  // Menu
-  menuRow: {
+  callBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#1a1a1a',
+    backgroundColor: '#0c0',
+    paddingVertical: 16,
+    paddingHorizontal: 40,
+    borderRadius: 40,
+    marginTop: 32,
+    elevation: 6,
+    shadowColor: '#0f0',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
   },
-  menuKeyBadge: {
-    width: 32,
-    height: 32,
-    borderRadius: 6,
-    backgroundColor: '#0f0',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 14,
-  },
-  menuKey: {
-    color: '#000',
+  callBtnText: {
+    color: '#fff',
+    fontSize: 20,
     fontWeight: 'bold',
-    fontSize: 16,
     fontFamily: 'monospace',
+    marginLeft: 12,
   },
-  menuLabel: {
-    color: '#0d0',
-    fontSize: 16,
+  idleHint: {
+    color: '#555',
+    fontSize: 12,
     fontFamily: 'monospace',
-    flex: 1,
+    marginTop: 20,
+    textAlign: 'center',
   },
 
-  // Buttons
-  numBtn: {
-    backgroundColor: '#0f0',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 8,
+  /* ── Header ───────────────────────────────────── */
+  header: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 8,
-  },
-  numBtnText: {
-    color: '#000',
-    fontWeight: 'bold',
-    fontSize: 15,
-    fontFamily: 'monospace',
-  },
-
-  // Advice
-  adviceBlock: {
-    color: '#0d0',
-    fontSize: 14,
-    fontFamily: 'monospace',
-    lineHeight: 22,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
     backgroundColor: '#111',
-    padding: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#0f03',
+    borderBottomWidth: 1,
+    borderBottomColor: '#0f02',
+  },
+  headerTitle: {
+    flex: 1,
+    color: '#0f0',
+    fontSize: 15,
+    fontWeight: 'bold',
+    fontFamily: 'monospace',
+    marginLeft: 8,
+  },
+  ttsToggle: { padding: 6 },
+
+  /* ── Session log ──────────────────────────────── */
+  logArea: { flex: 1 },
+  logContent: { padding: 12, paddingBottom: 8 },
+  logEntry: {
+    flexDirection: 'row',
+    marginBottom: 10,
+    alignItems: 'flex-start',
+  },
+  logTag: {
+    fontFamily: 'monospace',
+    fontSize: 11,
+    fontWeight: 'bold',
+    width: 36,
+    marginRight: 8,
+    marginTop: 2,
+  },
+  logText: {
+    flex: 1,
+    color: '#0d0',
+    fontFamily: 'monospace',
+    fontSize: 14,
+    lineHeight: 21,
   },
 
-  // Tips
-  tipText: {
-    color: '#ff0',
-    fontSize: 16,
-    fontFamily: 'monospace',
-    lineHeight: 26,
+  /* ── Dial pad ─────────────────────────────────── */
+  padContainer: {
+    backgroundColor: '#111',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#0f02',
+  },
+  padRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
     marginBottom: 8,
   },
-  tipNav: {
-    flexDirection: 'row',
-    marginTop: 8,
-  },
-
-  // Symptom triage
-  symptomRow: {
-    flexDirection: 'row',
+  padKey: {
+    width: PAD_KEY_SIZE,
+    height: PAD_KEY_SIZE,
+    borderRadius: PAD_KEY_SIZE / 2,
+    backgroundColor: '#1a1a1a',
     alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#1a1a1a',
-  },
-  symptomRowSelected: {
-    backgroundColor: '#0f01',
-  },
-  symptomCheck: {
-    color: '#0f0',
-    fontSize: 20,
-    fontFamily: 'monospace',
-    marginRight: 12,
-  },
-  symptomLabel: {
-    color: '#0d0',
-    fontSize: 15,
-    fontFamily: 'monospace',
-  },
-
-  // Level badge
-  levelBadge: {
-    borderWidth: 2,
-    borderRadius: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    alignSelf: 'flex-start',
-    marginBottom: 12,
-  },
-  levelText: {
-    fontWeight: 'bold',
-    fontSize: 18,
-    fontFamily: 'monospace',
-  },
-
-  // Facility card
-  facilityCard: {
-    backgroundColor: '#111',
+    justifyContent: 'center',
+    marginHorizontal: 10,
     borderWidth: 1,
     borderColor: '#0f03',
-    borderRadius: 8,
-    padding: 12,
   },
-  facilityName: {
+  padKeyHangup: {
+    backgroundColor: '#c00',
+    borderColor: '#f005',
+  },
+  padKeyStar: {
+    backgroundColor: '#0c0',
+    borderColor: '#0f05',
+  },
+  padKeyText: {
     color: '#0f0',
+    fontSize: 24,
     fontWeight: 'bold',
-    fontSize: 16,
     fontFamily: 'monospace',
-  },
-  facilityInfo: {
-    color: '#0a0',
-    fontSize: 14,
-    fontFamily: 'monospace',
-    marginTop: 2,
-  },
-
-  // Referral card
-  referralCard: {
-    backgroundColor: '#111',
-    borderWidth: 2,
-    borderColor: '#0f0',
-    borderRadius: 10,
-    padding: 16,
-  },
-  refTitle: {
-    color: '#0f0',
-    fontWeight: 'bold',
-    fontSize: 18,
-    fontFamily: 'monospace',
-    textAlign: 'center',
-    marginBottom: 10,
-  },
-  refLine: {
-    color: '#0d0',
-    fontSize: 14,
-    fontFamily: 'monospace',
-    lineHeight: 22,
-  },
-  refDivider: {
-    height: 1,
-    backgroundColor: '#0f04',
-    marginVertical: 10,
-  },
-
-  // History
-  historyItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#1a1a1a',
-    flexWrap: 'wrap',
-  },
-  historyDate: {
-    color: '#666',
-    fontSize: 12,
-    fontFamily: 'monospace',
-    width: 80,
-  },
-  historyLevel: {
-    fontWeight: 'bold',
-    fontSize: 13,
-    fontFamily: 'monospace',
-    width: 70,
-  },
-  historySymp: {
-    color: '#0a0',
-    fontSize: 12,
-    fontFamily: 'monospace',
-    flex: 1,
-  },
-  historyFac: {
-    color: '#0a0',
-    fontSize: 12,
-    fontFamily: 'monospace',
-    width: '100%',
-    marginTop: 2,
   },
 });
