@@ -1,21 +1,16 @@
 /**
  * riskEngine.js
  * ─────────────────────────────────────────────
- * Pure JavaScript rule-based risk scoring engine.
- * NO ML, NO AI, NO API calls.
- * Runs 100% offline on-device.
+ * Unified risk scoring engine.
  *
- * Weighted scoring system:
- *   heavyBleeding → 4   fatigue → 2
- *   dizziness     → 3   lowHb   → 4
- *   irregularCycles → 2  pain   → 2
- *   pregnancyIssue → 5
+ * Priority chain:
+ *   1. ML API (Remote Random Forest – 98.44% accuracy)
+ *   2. Local JS Random Forest (offline-capable)
+ *   3. Rule-based symptom scoring (always works)
  *
- * Emergency intensity modifiers:
- *   fainted    → +2   severePain → +2   vomiting → +2
- *
- * Risk Levels:
- *   0–3 → LOW | 4–6 → MODERATE | 7+ → HIGH
+ * The rule-based engine is kept as the final
+ * fallback and is still used directly by the
+ * ASHA / Symptom flow for quick symptom checks.
  * ─────────────────────────────────────────────
  */
 
@@ -26,7 +21,10 @@ import {
   RISK_LEVELS,
   RISK_COLORS,
   ADVICE,
+  ML_RISK_COLORS,
+  HEALTH_GRADE_COLORS,
 } from '../utils/constants';
+import { predictRisk as mlPredict, getHealthScore as mlHealthScore } from './mlApiService';
 
 /**
  * Calculate risk score from symptoms.
@@ -152,4 +150,118 @@ export function getActiveSymptomLabels(symptoms = {}, emergency = {}, language =
   });
 
   return active;
+}
+
+// ═══════════════════════════════════════════════
+//  ML-Enhanced Risk Assessment
+// ═══════════════════════════════════════════════
+
+/**
+ * Map ML API risk levels (Low/Medium/High) to the
+ * legacy constants (LOW/MODERATE/HIGH) used by UI.
+ */
+function mapMLLevel(mlLevel) {
+  switch (mlLevel) {
+    case 'Low':    return RISK_LEVELS.LOW;
+    case 'Medium': return RISK_LEVELS.MODERATE;
+    case 'High':   return RISK_LEVELS.HIGH;
+    default:       return RISK_LEVELS.LOW;
+  }
+}
+
+/**
+ * Enhanced risk assessment that combines ML prediction
+ * with the symptom-based rule engine.
+ *
+ * @param {Object} params
+ * @param {Object} params.symptoms       - Symptom boolean flags
+ * @param {Object} params.emergency      - Emergency intensity flags
+ * @param {Object} params.profile        - { age, height, weight, bmi, avgCycleLength }
+ * @param {Object} params.lifestyle      - { stress_level, sleep_hours, exercise_freq }
+ * @param {string} [params.language='en']
+ *
+ * @returns {Promise<Object>} Enriched risk result
+ */
+export async function enhancedRiskAssessment({
+  symptoms = {},
+  emergency = {},
+  profile = {},
+  lifestyle = {},
+  language = 'en',
+}) {
+  const lang = language === 'hi' ? 'hi' : 'en';
+
+  // ── 1. Always run the rule-based engine (instant) ──
+  const ruleResult = calculateRisk(symptoms, emergency, lang);
+
+  // ── 2. Attempt ML prediction if we have profile data ──
+  let mlResult = null;
+  if (profile.age && (profile.avgCycleLength || lifestyle.cycle_length_avg)) {
+    try {
+      const mlInput = {
+        age: profile.age,
+        bmi: profile.bmi || undefined,
+        height: profile.height || undefined,
+        weight: profile.weight || undefined,
+        stress_level: lifestyle.stress_level || 3,
+        sleep_hours: lifestyle.sleep_hours || 7,
+        exercise_freq: lifestyle.exercise_freq || 3,
+        cycle_length_avg: profile.avgCycleLength || lifestyle.cycle_length_avg || 28,
+        cycle_variance: lifestyle.cycle_variance || undefined,
+      };
+      mlResult = await mlPredict(mlInput);
+    } catch (err) {
+      console.warn('[riskEngine] ML prediction failed:', err.message);
+    }
+  }
+
+  // ── 3. Merge: If emergency flags are set, rule-engine takes priority ──
+  const hasEmergency = ruleResult.requiresEmergency;
+  const useML = mlResult && mlResult.risk_level !== 'Unknown';
+
+  // The "effective" level — use whichever is more severe
+  let effectiveLevel = ruleResult.level;
+  let effectiveColor = ruleResult.color;
+  let mlConfidence = null;
+  let healthScore = null;
+  let healthGrade = null;
+  let recommendationKey = null;
+
+  if (useML) {
+    const mlMappedLevel = mapMLLevel(mlResult.risk_level);
+    mlConfidence = mlResult.confidence;
+    healthScore = mlResult.health_score;
+    healthGrade = mlResult.grade;
+    recommendationKey = mlResult.recommendation_key;
+
+    // Use the more severe of ML vs rule-based
+    const severityOrder = { LOW: 0, MODERATE: 1, HIGH: 2 };
+    if (severityOrder[mlMappedLevel] >= severityOrder[ruleResult.level]) {
+      effectiveLevel = mlMappedLevel;
+      effectiveColor = RISK_COLORS[mlMappedLevel];
+    }
+  }
+
+  // Emergency always forces HIGH
+  if (hasEmergency) {
+    effectiveLevel = RISK_LEVELS.HIGH;
+    effectiveColor = RISK_COLORS[RISK_LEVELS.HIGH];
+  }
+
+  return {
+    // Legacy fields (backward-compatible with ResultScreen / ASHAScreen)
+    score: ruleResult.score,
+    level: effectiveLevel,
+    color: effectiveColor,
+    advice: ADVICE[effectiveLevel]?.[lang] || ruleResult.advice,
+    requiresEmergency: hasEmergency || effectiveLevel === RISK_LEVELS.HIGH,
+
+    // ML-enriched fields
+    mlAvailable: useML,
+    mlConfidence,
+    healthScore,
+    healthGrade,
+    recommendationKey,
+    source: useML ? (mlResult.source || 'ml_api') : 'rule_based',
+  };
 }

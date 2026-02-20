@@ -34,8 +34,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { LanguageContext } from '../context/LanguageContext';
 import SymptomToggle from '../components/SymptomToggle';
-import { calculateRisk } from '../services/riskEngine';
+import { calculateRisk, enhancedRiskAssessment } from '../services/riskEngine';
 import { saveHealthRecord, getVillageCode } from '../services/storageService';
+import { getUserProfile } from '../services/HealthDataLogger';
 import { SYMPTOM_WEIGHTS, EMERGENCY_INTENSITY } from '../utils/constants';
 
 // ── Translations ───────────────────────────────
@@ -60,6 +61,15 @@ const t = {
     vomiting: 'Continuous Vomiting',
     submitBtn: 'Check Risk Level',
     assessing: 'Assessing...',
+    // Lifestyle quick-input
+    lifestyleQuick: 'Lifestyle Factors (Optional)',
+    lifestyleQuickHint: 'Helps ML model give a better prediction',
+    stressLabel: 'Stress Level',
+    stressOpts: ['1-Low', '2', '3', '4', '5-High'],
+    sleepLabel: 'Sleep (hrs/night)',
+    sleepPlaceholder: 'e.g. 7',
+    exerciseLabel: 'Exercise (days/week)',
+    exercisePlaceholder: 'e.g. 3',
   },
   hi: {
     title: 'स्वास्थ्य मूल्यांकन',
@@ -81,6 +91,14 @@ const t = {
     vomiting: 'लगातार उल्टी',
     submitBtn: 'जोखिम स्तर जांचें',
     assessing: 'जांच हो रही है...',
+    lifestyleQuick: 'जीवनशैली कारक (वैकल्पिक)',
+    lifestyleQuickHint: 'ML मॉडल को बेहतर भविष्यवाणी देने में मदद करता है',
+    stressLabel: 'तनाव स्तर',
+    stressOpts: ['1-कम', '2', '3', '4', '5-अधिक'],
+    sleepLabel: 'नींद (घंटे/रात)',
+    sleepPlaceholder: 'जैसे 7',
+    exerciseLabel: 'व्यायाम (दिन/सप्ताह)',
+    exercisePlaceholder: 'जैसे 3',
   },
 };
 
@@ -113,6 +131,28 @@ export default function SymptomScreen() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Lifestyle quick-inputs for ML
+  const [stressLevel, setStressLevel] = useState(0); // 0 = not set
+  const [sleepHours, setSleepHours] = useState('');
+  const [exerciseFreq, setExerciseFreq] = useState('');
+  const [userProfile, setUserProfile] = useState(null);
+
+  // Load profile on mount (for ML prediction context)
+  React.useEffect(() => {
+    (async () => {
+      try {
+        const p = await getUserProfile();
+        if (p) {
+          setUserProfile(p);
+          // Pre-fill from profile if saved
+          if (p.stress_level && stressLevel === 0) setStressLevel(p.stress_level);
+          if (p.sleep_hours && !sleepHours) setSleepHours(String(p.sleep_hours));
+          if (p.exercise_freq && !exerciseFreq) setExerciseFreq(String(p.exercise_freq));
+        }
+      } catch (_) {}
+    })();
+  }, []);
+
   // Toggle a symptom flag
   const toggleSymptom = (key) => {
     setSymptoms((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -138,8 +178,20 @@ export default function SymptomScreen() {
     setIsSubmitting(true);
 
     try {
-      // 1. Calculate risk using rule-based engine
-      const result = calculateRisk(symptoms, emergency, lang);
+      // Build lifestyle data for ML engine
+      const lifestyle = {};
+      if (stressLevel > 0) lifestyle.stress_level = stressLevel;
+      if (sleepHours.trim()) lifestyle.sleep_hours = parseFloat(sleepHours);
+      if (exerciseFreq.trim()) lifestyle.exercise_freq = parseInt(exerciseFreq, 10);
+
+      // Use enhanced risk assessment (ML API → Local RF → Rule-based)
+      const result = await enhancedRiskAssessment({
+        symptoms,
+        emergency,
+        profile: userProfile || {},
+        lifestyle,
+        language: lang,
+      });
 
       // 2. Get village code for anonymized storage
       const villageCode = await getVillageCode();
@@ -163,6 +215,13 @@ export default function SymptomScreen() {
           advice: result.advice,
           requiresEmergency: result.requiresEmergency.toString(),
           recordId: record.id,
+          // ML enriched params
+          mlAvailable: result.mlAvailable ? 'true' : 'false',
+          mlConfidence: result.mlConfidence != null ? result.mlConfidence.toString() : '',
+          healthScore: result.healthScore != null ? result.healthScore.toString() : '',
+          healthGrade: result.healthGrade || '',
+          recommendationKey: result.recommendationKey || '',
+          source: result.source || '',
         },
       });
     } catch (error) {
@@ -275,6 +334,55 @@ export default function SymptomScreen() {
             weight={EMERGENCY_INTENSITY.vomiting}
           />
 
+          {/* ── Lifestyle Quick-Input (Optional) ─ */}
+          <Text style={styles.sectionTitle}>{texts.lifestyleQuick}</Text>
+          <Text style={styles.lifestyleHintText}>{texts.lifestyleQuickHint}</Text>
+
+          {/* Stress Level Chips */}
+          <Text style={styles.miniLabel}>{texts.stressLabel}</Text>
+          <View style={styles.chipRow}>
+            {[1, 2, 3, 4, 5].map((val) => (
+              <TouchableOpacity
+                key={val}
+                style={[styles.chip, stressLevel === val && styles.chipActive]}
+                onPress={() => setStressLevel(stressLevel === val ? 0 : val)}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.chipText, stressLevel === val && styles.chipTextActive]}>
+                  {texts.stressOpts[val - 1]}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {/* Sleep & Exercise inline */}
+          <View style={styles.inlineRow}>
+            <View style={styles.inlineField}>
+              <Text style={styles.miniLabel}>{texts.sleepLabel}</Text>
+              <TextInput
+                style={styles.miniInput}
+                value={sleepHours}
+                onChangeText={(v) => setSleepHours(v.replace(/[^0-9.]/g, ''))}
+                placeholder={texts.sleepPlaceholder}
+                placeholderTextColor="#BBB"
+                keyboardType="decimal-pad"
+                maxLength={4}
+              />
+            </View>
+            <View style={styles.inlineField}>
+              <Text style={styles.miniLabel}>{texts.exerciseLabel}</Text>
+              <TextInput
+                style={styles.miniInput}
+                value={exerciseFreq}
+                onChangeText={(v) => setExerciseFreq(v.replace(/[^0-9]/g, ''))}
+                placeholder={texts.exercisePlaceholder}
+                placeholderTextColor="#BBB"
+                keyboardType="number-pad"
+                maxLength={1}
+              />
+            </View>
+          </View>
+
           {/* ── Submit Button ─────────────── */}
           <TouchableOpacity
             style={[styles.submitBtn, isSubmitting && styles.submitBtnDisabled]}
@@ -354,6 +462,64 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     marginBottom: 8,
     marginLeft: 4,
+  },
+  lifestyleHintText: {
+    fontSize: 12,
+    color: '#BBB',
+    marginBottom: 8,
+    marginLeft: 4,
+  },
+  miniLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#555',
+    marginBottom: 4,
+    marginTop: 4,
+  },
+  chipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 8,
+  },
+  chip: {
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+    borderRadius: 18,
+    borderWidth: 1.5,
+    borderColor: '#E0E0E0',
+    backgroundColor: '#FFF',
+  },
+  chipActive: {
+    borderColor: '#FFB6C1',
+    backgroundColor: '#FFE4E9',
+  },
+  chipText: {
+    fontSize: 12,
+    color: '#888',
+    fontWeight: '500',
+  },
+  chipTextActive: {
+    color: '#C2185B',
+    fontWeight: '600',
+  },
+  inlineRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 4,
+  },
+  inlineField: {
+    flex: 1,
+  },
+  miniInput: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: '#E0E0E0',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    fontSize: 15,
+    color: '#333',
   },
   submitBtn: {
     backgroundColor: '#FFB6C1',

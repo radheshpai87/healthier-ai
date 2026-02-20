@@ -81,6 +81,19 @@ export const translations = {
     CONTINUE_HEALTHY: 'Good job! Continue your healthy habits for optimal wellness.',
     COMPLETE_PROFILE: 'Please complete your health profile for personalized risk assessment.',
     TRY_AGAIN: 'Something went wrong. Please try again.',
+    // ML API-specific recommendation keys
+    EXCELLENT_HEALTH: 'Great job! Your health indicators look excellent.',
+    REDUCE_STRESS: 'Focus on stress management techniques like breathing exercises and meditation.',
+    MONITOR_CYCLES: 'Track your cycles closely for patterns. Note any changes.',
+    STRESS_SLEEP_URGENT_ML: 'Prioritize sleep and stress reduction — both are critical for your health.',
+    BMI_ATTENTION_NEEDED: 'Focus on nutrition and exercise balance for a healthier BMI.',
+    
+    // Health Score
+    healthScoreLabel: 'Health Score',
+    healthGrade: 'Grade',
+    mlPowered: 'ML-Powered',
+    offlineMode: 'Offline Analysis',
+    confidenceLabel: 'Confidence',
     
     // Health Profile
     healthProfile: 'Health Profile',
@@ -90,6 +103,16 @@ export const translations = {
     bmi: 'BMI',
     saveProfile: 'Save Profile',
     profileSaved: 'Profile saved successfully!',
+    
+    // Lifestyle inputs
+    lifestyleSection: 'Lifestyle Factors',
+    lifestyleHint: 'Helps improve prediction accuracy',
+    stressLevelLabel: 'Stress Level',
+    stressLow: 'Low',
+    stressMedium: 'Moderate',
+    stressHigh: 'High',
+    sleepHoursLabel: 'Avg. Sleep (hours)',
+    exerciseFreqLabel: 'Exercise (days/week)',
     
     // Daily Log
     dailyLog: 'Daily Health Log',
@@ -202,6 +225,17 @@ export const translations = {
     CONTINUE_HEALTHY: 'शाबाश! अपनी स्वस्थ आदतें जारी रखें।',
     COMPLETE_PROFILE: 'कृपया व्यक्तिगत जोखिम मूल्यांकन के लिए अपनी प्रोफ़ाइल पूरी करें।',
     TRY_AGAIN: 'कुछ गड़बड़ हुई। कृपया फिर से कोशिश करें।',
+    EXCELLENT_HEALTH: 'बहुत बढ़िया! आपके स्वास्थ्य संकेतक उत्कृष्ट हैं।',
+    REDUCE_STRESS: 'श्वास व्यायाम और ध्यान जैसी तनाव प्रबंधन तकनीकों पर ध्यान दें।',
+    MONITOR_CYCLES: 'पैटर्न के लिए अपने चक्रों को बारीकी से ट्रैक करें।',
+    STRESS_SLEEP_URGENT_ML: 'नींद और तनाव कम करने को प्राथमिकता दें — दोनों आपके स्वास्थ्य के लिए महत्वपूर्ण हैं।',
+    BMI_ATTENTION_NEEDED: 'स्वस्थ BMI के लिए पोषण और व्यायाम के संतुलन पर ध्यान दें।',
+    
+    healthScoreLabel: 'स्वास्थ्य स्कोर',
+    healthGrade: 'ग्रेड',
+    mlPowered: 'ML-संचालित',
+    offlineMode: 'ऑफलाइन विश्लेषण',
+    confidenceLabel: 'विश्वास',
     
     // Health Profile
     healthProfile: 'स्वास्थ्य प्रोफ़ाइल',
@@ -211,6 +245,15 @@ export const translations = {
     bmi: 'BMI',
     saveProfile: 'प्रोफ़ाइल सहेजें',
     profileSaved: 'प्रोफ़ाइल सफलतापूर्वक सहेजी गई!',
+    
+    lifestyleSection: 'जीवनशैली कारक',
+    lifestyleHint: 'भविष्यवाणी सटीकता बेहतर करने में मदद करता है',
+    stressLevelLabel: 'तनाव स्तर',
+    stressLow: 'कम',
+    stressMedium: 'मध्यम',
+    stressHigh: 'अधिक',
+    sleepHoursLabel: 'औसत नींद (घंटे)',
+    exerciseFreqLabel: 'व्यायाम (दिन/सप्ताह)',
     
     // Daily Log
     dailyLog: 'दैनिक स्वास्थ्य लॉग',

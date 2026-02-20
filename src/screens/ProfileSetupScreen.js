@@ -60,6 +60,15 @@ const t = {
     skipBtn: 'Skip for now',
     skipNote: 'You can complete your profile later in Settings or Health tab.',
     privacyNote: 'All data stays on your phone — nothing is uploaded.',
+    // Lifestyle
+    lifestyleTitle: 'Lifestyle (Optional)',
+    lifestyleHint: 'Improves ML-powered health prediction accuracy',
+    stressLabel: 'Stress Level',
+    stressOptions: ['Low', 'Mild', 'Moderate', 'High', 'Very High'],
+    sleepLabel: 'Average Sleep (hours/night)',
+    sleepPlaceholder: 'e.g. 7',
+    exerciseLabel: 'Exercise (days per week)',
+    exercisePlaceholder: 'e.g. 3',
     // Validation
     ageRequired: 'Please enter your age',
     ageInvalid: 'Age must be between 10 and 60',
@@ -89,6 +98,15 @@ const t = {
     skipBtn: 'अभी छोड़ें',
     skipNote: 'आप बाद में सेटिंग्स या स्वास्थ्य टैब में प्रोफ़ाइल पूरी कर सकती हैं।',
     privacyNote: 'सारा डेटा आपके फ़ोन पर ही रहता है — कुछ भी अपलोड नहीं होता।',
+    // Lifestyle
+    lifestyleTitle: 'जीवनशैली (वैकल्पिक)',
+    lifestyleHint: 'ML-संचालित स्वास्थ्य भविष्यवाणी सटीकता बेहतर करता है',
+    stressLabel: 'तनाव स्तर',
+    stressOptions: ['कम', 'हल्का', 'मध्यम', 'अधिक', 'बहुत अधिक'],
+    sleepLabel: 'औसत नींद (घंटे/रात)',
+    sleepPlaceholder: 'जैसे 7',
+    exerciseLabel: 'व्यायाम (दिन/सप्ताह)',
+    exercisePlaceholder: 'जैसे 3',
     // Validation
     ageRequired: 'कृपया अपनी आयु दर्ज करें',
     ageInvalid: 'आयु 10 से 60 के बीच होनी चाहिए',
@@ -117,6 +135,11 @@ export default function ProfileSetupScreen() {
   const [errors, setErrors] = useState({});
   const [isEditing, setIsEditing] = useState(false);
 
+  // Lifestyle fields (for ML model)
+  const [stressLevel, setStressLevel] = useState(0); // 0 = not set, 1-5
+  const [sleepHours, setSleepHours] = useState('');
+  const [exerciseFreq, setExerciseFreq] = useState('');
+
   // PIN creation state (only shown for new registrations)
   const [showPinSetup, setShowPinSetup] = useState(false);
   const [displayName, setDisplayName] = useState('');
@@ -137,6 +160,9 @@ export default function ProfileSetupScreen() {
           if (profile.height) setHeight(String(profile.height));
           if (profile.weight) setWeight(String(profile.weight));
           if (profile.avgCycleLength) setCycleLength(String(profile.avgCycleLength));
+          if (profile.stress_level) setStressLevel(profile.stress_level);
+          if (profile.sleep_hours) setSleepHours(String(profile.sleep_hours));
+          if (profile.exercise_freq) setExerciseFreq(String(profile.exercise_freq));
           setIsEditing(true);
         }
         const periodDates = await getPeriodData();
@@ -205,6 +231,9 @@ export default function ProfileSetupScreen() {
       if (height.trim()) profile.height = parseFloat(height);
       if (weight.trim()) profile.weight = parseFloat(weight);
       if (cycleLength.trim()) profile.avgCycleLength = parseInt(cycleLength, 10);
+      if (stressLevel > 0) profile.stress_level = stressLevel;
+      if (sleepHours.trim()) profile.sleep_hours = parseFloat(sleepHours);
+      if (exerciseFreq.trim()) profile.exercise_freq = parseInt(exerciseFreq, 10);
 
       if (isEditing) {
         // When editing, user already has an ID — save immediately (scoped)
@@ -450,6 +479,63 @@ export default function ProfileSetupScreen() {
             {errors.cycleLength && <Text style={styles.errorText}>{errors.cycleLength}</Text>}
           </View>
 
+          {/* ── Lifestyle Section (Optional) ──── */}
+          <View style={styles.lifestyleSection}>
+            <Text style={styles.lifestyleTitle}>{texts.lifestyleTitle}</Text>
+            <Text style={styles.lifestyleHint}>{texts.lifestyleHint}</Text>
+
+            {/* Stress Level Chips */}
+            <Text style={[styles.label, { marginTop: 12 }]}>{texts.stressLabel}</Text>
+            <View style={styles.chipRow}>
+              {[1, 2, 3, 4, 5].map((val) => (
+                <TouchableOpacity
+                  key={val}
+                  style={[
+                    styles.chip,
+                    stressLevel === val && styles.chipActive,
+                  ]}
+                  onPress={() => setStressLevel(stressLevel === val ? 0 : val)}
+                  activeOpacity={0.7}
+                >
+                  <Text
+                    style={[
+                      styles.chipText,
+                      stressLevel === val && styles.chipTextActive,
+                    ]}
+                  >
+                    {texts.stressOptions[val - 1]}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* Sleep Hours */}
+            <Text style={[styles.label, { marginTop: 12 }]}>{texts.sleepLabel}</Text>
+            <TextInput
+              style={styles.input}
+              value={sleepHours}
+              onChangeText={(val) => setSleepHours(val.replace(/[^0-9.]/g, ''))}
+              placeholder={texts.sleepPlaceholder}
+              placeholderTextColor="#BBB"
+              keyboardType="decimal-pad"
+              maxLength={4}
+              returnKeyType="next"
+            />
+
+            {/* Exercise Frequency */}
+            <Text style={[styles.label, { marginTop: 12 }]}>{texts.exerciseLabel}</Text>
+            <TextInput
+              style={styles.input}
+              value={exerciseFreq}
+              onChangeText={(val) => setExerciseFreq(val.replace(/[^0-9]/g, ''))}
+              placeholder={texts.exercisePlaceholder}
+              placeholderTextColor="#BBB"
+              keyboardType="number-pad"
+              maxLength={1}
+              returnKeyType="done"
+            />
+          </View>
+
           {/* ── Continue Button ─────────────── */}
           <TouchableOpacity
             style={styles.continueBtn}
@@ -651,6 +737,51 @@ const styles = StyleSheet.create({
     color: '#AAA',
     marginTop: 4,
     marginLeft: 4,
+  },
+  lifestyleSection: {
+    marginTop: 8,
+    marginBottom: 8,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#FFE4E9',
+  },
+  lifestyleTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#555',
+    marginBottom: 2,
+  },
+  lifestyleHint: {
+    fontSize: 12,
+    color: '#BBB',
+    marginBottom: 4,
+  },
+  chipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 6,
+  },
+  chip: {
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: '#E0E0E0',
+    backgroundColor: '#FFF',
+  },
+  chipActive: {
+    borderColor: '#FFB6C1',
+    backgroundColor: '#FFE4E9',
+  },
+  chipText: {
+    fontSize: 13,
+    color: '#888',
+    fontWeight: '500',
+  },
+  chipTextActive: {
+    color: '#C2185B',
+    fontWeight: '600',
   },
   dateInput: {
     justifyContent: 'center',

@@ -327,6 +327,19 @@ export default function RiskScreen() {
                 <Volume2 size={20} color="#FFB6C1" />
               </TouchableOpacity>
             </View>
+
+            {/* ML source indicator */}
+            {riskResult.source && (
+              <View style={styles.sourceTag}>
+                <Text style={styles.sourceTagText}>
+                  {riskResult.source === 'ml_api'
+                    ? (language === 'hi' ? 'ML-संचालित' : 'ML-Powered')
+                    : riskResult.source === 'local_fallback'
+                    ? (language === 'hi' ? 'ऑफलाइन विश्लेषण' : 'Offline Analysis')
+                    : ''}
+                </Text>
+              </View>
+            )}
           </View>
         )}
 
@@ -601,6 +614,21 @@ const styles = StyleSheet.create({
   speakButton: {
     padding: 5,
     marginLeft: 10,
+  },
+  sourceTag: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#EEF2FF',
+    borderRadius: 6,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    marginTop: 10,
+  },
+  sourceTagText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#6366F1',
+    letterSpacing: 0.3,
+    textTransform: 'uppercase',
   },
   buttonRow: {
     flexDirection: 'row',

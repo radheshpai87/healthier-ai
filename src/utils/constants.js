@@ -27,6 +27,22 @@ export const RISK_COLORS = {
   HIGH: '#F44336',      // Red
 };
 
+// ── ML API Risk Colors (for inline use) ────────
+export const ML_RISK_COLORS = {
+  Low:    '#22C55E',   // Green
+  Medium: '#F59E0B',   // Amber
+  High:   '#EF4444',   // Red
+};
+
+// ── Health Score Grade Colors ──────────────────
+export const HEALTH_GRADE_COLORS = {
+  A: '#22C55E',
+  B: '#84CC16',
+  C: '#F59E0B',
+  D: '#F97316',
+  F: '#EF4444',
+};
+
 // ── Symptom Weights (used by rule-based engine) ─
 export const SYMPTOM_WEIGHTS = {
   heavyBleeding: 4,

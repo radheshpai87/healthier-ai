@@ -29,7 +29,8 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { LanguageContext } from '../context/LanguageContext';
 import RiskBadge from '../components/RiskBadge';
 import { triggerEmergency, sendEmergencySMS, promptEmergencyCall } from '../services/emergencyService';
-import { RISK_LEVELS } from '../utils/constants';
+import { RISK_LEVELS, HEALTH_GRADE_COLORS } from '../utils/constants';
+import { translations } from '../constants/translations';
 
 // ── Translations ───────────────────────────────
 const t = {
@@ -76,6 +77,15 @@ export default function ResultScreen() {
   const color = params.color || '#4CAF50';
   const advice = params.advice || '';
   const requiresEmergency = params.requiresEmergency === 'true';
+
+  // ML-enriched params
+  const mlAvailable = params.mlAvailable === 'true';
+  const mlConfidence = params.mlConfidence ? parseFloat(params.mlConfidence) : null;
+  const healthScore = params.healthScore ? parseInt(params.healthScore, 10) : null;
+  const healthGrade = params.healthGrade || null;
+  const recommendationKey = params.recommendationKey || null;
+  const source = params.source || 'rule_based';
+  const tGlobal = translations[lang] || translations.en;
 
   const [smsStatus, setSmsStatus] = useState(null); // null | 'sent' | 'failed'
 
@@ -126,6 +136,58 @@ export default function ResultScreen() {
           <Text style={styles.adviceTitle}>{texts.adviceTitle}</Text>
           <Text style={styles.adviceText}>{advice}</Text>
         </View>
+
+        {/* ML Recommendation (if available) */}
+        {recommendationKey && tGlobal[recommendationKey] && (
+          <View style={styles.mlRecommendationCard}>
+            <Text style={styles.mlRecommendationText}>
+              {tGlobal[recommendationKey]}
+            </Text>
+          </View>
+        )}
+
+        {/* Health Score & Confidence Card (ML enriched) */}
+        {(healthScore != null || mlConfidence != null) && (
+          <View style={styles.mlCard}>
+            <View style={styles.mlBadge}>
+              <Text style={styles.mlBadgeText}>
+                {source === 'ml_api' ? (tGlobal.mlPowered || 'ML-Powered') : (tGlobal.offlineMode || 'Offline Analysis')}
+              </Text>
+            </View>
+            <View style={styles.mlRow}>
+              {healthScore != null && (
+                <View style={styles.mlStat}>
+                  <Text style={[styles.mlStatValue, { color: HEALTH_GRADE_COLORS[healthGrade] || '#333' }]}>
+                    {healthScore}
+                  </Text>
+                  <Text style={styles.mlStatLabel}>
+                    {tGlobal.healthScoreLabel || 'Health Score'}
+                  </Text>
+                </View>
+              )}
+              {healthGrade && (
+                <View style={styles.mlStat}>
+                  <Text style={[styles.mlStatValue, { color: HEALTH_GRADE_COLORS[healthGrade] || '#333' }]}>
+                    {healthGrade}
+                  </Text>
+                  <Text style={styles.mlStatLabel}>
+                    {tGlobal.healthGrade || 'Grade'}
+                  </Text>
+                </View>
+              )}
+              {mlConfidence != null && (
+                <View style={styles.mlStat}>
+                  <Text style={styles.mlStatValue}>
+                    {Math.round(mlConfidence * 100)}%
+                  </Text>
+                  <Text style={styles.mlStatLabel}>
+                    {tGlobal.confidenceLabel || 'Confidence'}
+                  </Text>
+                </View>
+              )}
+            </View>
+          </View>
+        )}
 
         {/* Emergency Actions (only for HIGH risk) */}
         {requiresEmergency && (
@@ -231,6 +293,62 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#666',
     lineHeight: 22,
+  },
+  mlRecommendationCard: {
+    backgroundColor: '#F0F9FF',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: '#3B82F6',
+  },
+  mlRecommendationText: {
+    fontSize: 14,
+    color: '#1E40AF',
+    lineHeight: 20,
+  },
+  mlCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  mlBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#EEF2FF',
+    borderRadius: 8,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    marginBottom: 12,
+  },
+  mlBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#6366F1',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  mlRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  mlStat: {
+    alignItems: 'center',
+  },
+  mlStatValue: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#333',
+  },
+  mlStatLabel: {
+    fontSize: 12,
+    color: '#888',
+    marginTop: 4,
   },
   emergencyContainer: {
     backgroundColor: '#FFF0F0',

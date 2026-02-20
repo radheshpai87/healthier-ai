@@ -9,11 +9,21 @@
 # Usage: kill_port 8081
 kill_port() {
     local port="$1"
+    # Linux/macOS
     local pids
     pids=$(lsof -ti tcp:"$port" 2>/dev/null || true)
     if [ -n "$pids" ]; then
         echo -e "  ${YELLOW}⚡ Killing existing process on port $port${NC}"
         echo "$pids" | xargs kill -9 2>/dev/null || true
+        sleep 0.3
+        return
+    fi
+    # Windows fallback (Git Bash / MSYS)
+    local win_pid
+    win_pid=$(netstat -ano 2>/dev/null | grep ":${port} " | grep "LISTENING" | awk '{print $NF}' | head -n1)
+    if [ -n "$win_pid" ] && [ "$win_pid" != "0" ]; then
+        echo -e "  ${YELLOW}⚡ Killing existing process on port $port (PID $win_pid)${NC}"
+        taskkill //F //PID "$win_pid" 2>/dev/null || true
         sleep 0.3
     fi
 }
@@ -85,6 +95,7 @@ clear_all_caches() {
 detect_lan_ip() {
     local root="$1"
 
+    # Try python3 first (Linux/macOS), then python (Windows)
     LAN_IP=$(python3 -c "
 import socket
 s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -94,7 +105,23 @@ s.close()
 " 2>/dev/null || true)
 
     if [ -z "$LAN_IP" ]; then
+        LAN_IP=$(python -c "
+import socket
+s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+s.connect(('8.8.8.8', 80))
+print(s.getsockname()[0])
+s.close()
+" 2>/dev/null || true)
+    fi
+
+    # Linux fallback
+    if [ -z "$LAN_IP" ]; then
         LAN_IP=$(hostname -I 2>/dev/null | awk '{print $1}')
+    fi
+
+    # Windows fallback — parse ipconfig
+    if [ -z "$LAN_IP" ]; then
+        LAN_IP=$(ipconfig 2>/dev/null | grep -i "IPv4" | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}' | grep -v '^127\.' | head -n1)
     fi
 
     if [ -z "$LAN_IP" ]; then
@@ -108,8 +135,15 @@ s.close()
     echo -e "  ${GREEN}Backend URL: ${CYAN}${BACKEND_URL}${NC}"
     echo ""
 
+    # Detect which python to use
+    local PY=""
+    if command -v python3 &>/dev/null; then PY="python3";
+    elif command -v python &>/dev/null; then PY="python";
+    fi
+
     # Write into app.json so the mobile app reads the correct URL at runtime
-    python3 -c "
+    if [ -n "$PY" ]; then
+        $PY -c "
 import json
 try:
     with open('${root}/app.json') as f: cfg = json.load(f)
@@ -120,10 +154,11 @@ try:
 except Exception as e:
     print(f'  Warning: could not update app.json: {e}')
 " 2>/dev/null || true
+    fi
 
     # Write into dashboard/.env
-    if [ -f "$root/dashboard/.env" ]; then
-        python3 -c "
+    if [ -f "$root/dashboard/.env" ] && [ -n "$PY" ]; then
+        $PY -c "
 import re
 path = '${root}/dashboard/.env'
 with open(path) as f: content = f.read()

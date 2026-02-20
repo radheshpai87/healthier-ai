@@ -7,6 +7,7 @@
 
 import * as SecureStore from 'expo-secure-store';
 import { predictRisk, analyzeCycleHistory } from '../engine/RandomForestRiskEngine';
+import { predictRisk as mlApiPredict, getHealthScore as mlApiHealthScore } from './mlApiService';
 import { addToSyncQueue, getVillageCode } from './storageService';
 import { getPeriodData } from '../utils/storage';
 import { scopedKey } from './authService';
@@ -194,7 +195,7 @@ export async function getRecentLogs(days = 7) {
 }
 
 /**
- * Perform risk assessment using Random Forest engine
+ * Perform risk assessment using ML API → Local RF → fallback.
  * @param {Object} dailyLog - Today's health log
  * @returns {Promise<Object>} Risk assessment result
  */
@@ -244,9 +245,9 @@ export async function performRiskAssessment(dailyLog = null) {
     const recentLogs = await getRecentLogs(7);
     
     // Calculate averages from recent logs
-    let avgStress = dailyLog?.stress_level || 3;
-    let avgSleep = dailyLog?.sleep_hours || 7;
-    let avgExercise = dailyLog?.exercise_freq || 3;
+    let avgStress = dailyLog?.stress_level || profile.stress_level || 3;
+    let avgSleep = dailyLog?.sleep_hours || profile.sleep_hours || 7;
+    let avgExercise = dailyLog?.exercise_freq || profile.exercise_freq || 3;
     
     if (recentLogs.length > 0) {
       avgStress = recentLogs.reduce((sum, log) => sum + (log.stress_level || 3), 0) / recentLogs.length;
@@ -254,19 +255,28 @@ export async function performRiskAssessment(dailyLog = null) {
       avgExercise = recentLogs.reduce((sum, log) => sum + (log.exercise_freq || 0), 0) / recentLogs.length;
     }
     
-    // Prepare data for Random Forest
+    // Prepare data for prediction
     const userData = {
       age: profile.age,
-      bmi: profile.bmi || 22,
+      bmi: profile.bmi || undefined,
+      height: profile.height || undefined,
+      weight: profile.weight || undefined,
       stress_level: Math.round(avgStress),
       sleep_hours: avgSleep,
       exercise_freq: Math.round(avgExercise),
-      cycle_length_avg: cycleAnalysis.average || 28,
+      cycle_length_avg: cycleAnalysis.average || profile.avgCycleLength || 28,
       cycle_variance: cycleAnalysis.variance,
     };
     
-    // Run prediction
-    const prediction = predictRisk(userData);
+    // Try ML API first, then fall back to local engine
+    let prediction;
+    try {
+      prediction = await mlApiPredict(userData);
+    } catch (mlErr) {
+      console.warn('[HealthDataLogger] ML API failed, using local engine:', mlErr.message);
+      prediction = predictRisk(userData);
+      prediction.source = 'local_fallback';
+    }
     
     // Save to risk history
     await saveRiskAssessment(prediction);
