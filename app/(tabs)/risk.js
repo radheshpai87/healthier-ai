@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   TextInput,
   Alert,
   ActivityIndicator,
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
@@ -21,6 +22,8 @@ import {
   Moon,
   Dumbbell,
   Brain,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react-native';
 import * as Speech from 'expo-speech';
 import { useLanguage } from '../../src/context/LanguageContext';
@@ -34,7 +37,6 @@ import {
   getRiskHistory,
 } from '../../src/services/HealthDataLogger';
 import { getSyncStatus, syncPendingData } from '../../src/services/syncService';
-import VoiceAlert from '../../src/components/VoiceAlert';
 
 export default function RiskScreen() {
   const { language } = useLanguage();
@@ -46,7 +48,9 @@ export default function RiskScreen() {
   const [syncStatus, setSyncStatus] = useState(null);
   const [showProfile, setShowProfile] = useState(false);
   const [showDailyLog, setShowDailyLog] = useState(false);
-  const [showVoiceAlert, setShowVoiceAlert] = useState(false);
+  const [isAtBottom, setIsAtBottom] = useState(false);
+  const scrollViewRef = useRef(null);
+  const scrollY = useRef(new Animated.Value(0)).current;
   
   // Profile form
   const [profile, setProfile] = useState({
@@ -120,11 +124,6 @@ export default function RiskScreen() {
     try {
       const result = await performRiskAssessment(dailyLog);
       setRiskResult(result);
-      
-      // Show voice alert for Medium or High risk
-      if (result.risk_level === 'Medium' || result.risk_level === 'High') {
-        setShowVoiceAlert(true);
-      }
       
       // Update health score
       const score = await calculateHealthScore();
@@ -262,20 +261,28 @@ export default function RiskScreen() {
     }
   };
 
+  const handleScroll = (event) => {
+    const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
+    const isBottom = (layoutMeasurement.height + contentOffset.y) >= (contentSize.height - 50);
+    setIsAtBottom(isBottom);
+  };
+
+  const scrollToEnd = () => {
+    scrollViewRef.current?.scrollToEnd({ animated: true });
+  };
+
+  const scrollToTop = () => {
+    scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+  };
+
   return (
     <SafeAreaView style={styles.container}>
-      {/* Voice Alert Overlay */}
-      {riskResult && (
-        <VoiceAlert
-          visible={showVoiceAlert}
-          riskLevel={riskResult.risk_level}
-          recommendationKey={riskResult.recommendation_key}
-          onDismiss={() => setShowVoiceAlert(false)}
-          autoSpeak={riskResult.risk_level === 'High'}
-        />
-      )}
-
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView
+        ref={scrollViewRef}
+        showsVerticalScrollIndicator={false}
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
+      >
         <View style={styles.header}>
           <Text style={styles.title}>{t.riskAssessment}</Text>
         </View>
@@ -508,6 +515,18 @@ export default function RiskScreen() {
           </View>
         )}
       </ScrollView>
+
+      {/* Floating Scroll Button */}
+      <TouchableOpacity
+        style={styles.scrollFab}
+        onPress={isAtBottom ? scrollToTop : scrollToEnd}
+        activeOpacity={0.8}
+      >
+        {isAtBottom
+          ? <ChevronUp size={22} color="#FFF" />
+          : <ChevronDown size={22} color="#FFF" />
+        }
+      </TouchableOpacity>
     </SafeAreaView>
   );
 }
@@ -774,5 +793,21 @@ const styles = StyleSheet.create({
   syncButtonText: {
     color: '#FFB6C1',
     fontSize: 14,
+  },
+  scrollFab: {
+    position: 'absolute',
+    bottom: 25,
+    right: 20,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#FFB6C1',
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
   },
 });

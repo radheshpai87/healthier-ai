@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { Home, Calendar, MessageCircle, Settings, Activity } from 'lucide-react-native';
+import { Home, Calendar, MessageCircle, Settings, Activity, Phone } from 'lucide-react-native';
 
 export default function TabLayout() {
   return (
@@ -21,6 +21,7 @@ export default function TabLayout() {
       <Tabs.Screen name="calendar" options={{ title: 'Calendar', tabBarIcon: ({ color, size }) => <Calendar        color={color} size={size} /> }} />
       <Tabs.Screen name="risk"     options={{ title: 'Health',   tabBarIcon: ({ color, size }) => <Activity        color={color} size={size} /> }} />
       <Tabs.Screen name="chat"     options={{ title: 'AI Chat',  tabBarIcon: ({ color, size }) => <MessageCircle   color={color} size={size} /> }} />
+      <Tabs.Screen name="rural"    options={{ title: 'IVR',      tabBarIcon: ({ color, size }) => <Phone           color={color} size={size} /> }} />
       <Tabs.Screen name="settings" options={{ title: 'Settings', tabBarIcon: ({ color, size }) => <Settings        color={color} size={size} /> }} />
     </Tabs>
   );

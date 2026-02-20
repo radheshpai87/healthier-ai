@@ -259,6 +259,23 @@ export async function deleteCurrentUser() {
 }
 
 /**
+ * Delete any user by ID (for managing profiles from login screen).
+ * @param {string} userId
+ * @returns {Promise<boolean>}
+ */
+export async function deleteUserById(userId) {
+  const users = await getUsers();
+  const filtered = users.filter((u) => u.id !== userId);
+  if (filtered.length === users.length) return false; // user not found
+  await saveUsers(filtered);
+  // If deleting the currently active session user, clear session
+  if (_currentUserId === userId) {
+    await logout();
+  }
+  return true;
+}
+
+/**
  * Check if there are any registered users.
  * Used by login screen to decide whether to show onboarding.
  * @returns {Promise<boolean>}

@@ -23,18 +23,27 @@ import {
   ChevronRight,
   TrendingUp,
   Stethoscope,
+  Phone,
+  AlertTriangle,
+  AlertCircle,
+  CheckCircle,
+  Clock,
+  Lock,
+  User,
 } from 'lucide-react-native';
 import LanguageSwitch from '../../src/components/LanguageSwitch';
 import { useLanguage } from '../../src/context/LanguageContext';
+import { useAuth } from '../../src/context/AuthContext';
 import { translations } from '../../src/constants/translations';
 import { getPeriodData } from '../../src/utils/storage';
 import { getRole } from '../../src/services/storageService';
-import { getUserProfile } from '../../src/services/HealthDataLogger';
+import { getUserProfile, getRiskHistory } from '../../src/services/HealthDataLogger';
 
 const { width } = Dimensions.get('window');
 
 export default function HomeScreen() {
   const { language } = useLanguage();
+  const { user } = useAuth();
   const t = translations[language];
   const router = useRouter();
   
@@ -45,13 +54,15 @@ export default function HomeScreen() {
   const [userRole, setUserRole] = useState(null);
   const [hasProfile, setHasProfile] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
+  const [nextPeriodDate, setNextPeriodDate] = useState(null);
+  const [riskReports, setRiskReports] = useState([]);
 
   useEffect(() => {
     const init = async () => {
       setIsLoading(true);
       setGreetingMessage();
       setDailyTip();
-      await Promise.all([loadCycleInfo(), loadRole(), checkProfile()]);
+      await Promise.all([loadCycleInfo(), loadRole(), checkProfile(), loadRiskReports()]);
       setIsLoading(false);
     };
     init();
@@ -86,6 +97,17 @@ export default function HomeScreen() {
     }
   };
 
+  const loadRiskReports = async () => {
+    try {
+      const history = await getRiskHistory();
+      // Get last 5 reports, newest first
+      const recent = history.slice(-5).reverse();
+      setRiskReports(recent);
+    } catch (e) {
+      console.warn('[Home] Failed to load risk reports:', e);
+    }
+  };
+
   const loadCycleInfo = async () => {
     try {
       const periodDates = await getPeriodData();
@@ -108,6 +130,11 @@ export default function HomeScreen() {
         } catch (_) {}
         const nextPeriod = avgCycle - diffDays;
         setNextPeriodDays(nextPeriod > 0 ? nextPeriod : 0);
+
+        // Calculate next period date
+        const nextDate = new Date(lastPeriod);
+        nextDate.setDate(nextDate.getDate() + avgCycle);
+        setNextPeriodDate(nextDate);
       }
     } catch (error) {
       console.error('Error loading cycle info:', error);
@@ -202,15 +229,15 @@ export default function HomeScreen() {
       color: '#2196F3',
       onPress: () => router.push('/risk'),
     },
-    // Show ASHA Dashboard for ASHA workers
-    ...(userRole === 'asha' ? [{
-      id: 'asha',
-      title: language === 'hi' ? 'आशा डैशबोर्ड' : 'ASHA Dashboard',
-      subtitle: language === 'hi' ? 'मरीज रिकॉर्ड' : 'Patient records',
-      icon: <Stethoscope size={24} color="#FFF" />,
-      color: '#9C27B0',
-      onPress: () => router.push('/asha'),
-    }] : []),
+    // IVR Rural Mode — simulated missed-call IVR for low-literacy users
+    {
+      id: 'rural',
+      title: language === 'hi' ? 'IVR ग्रामीण मोड' : 'IVR Rural Mode',
+      subtitle: language === 'hi' ? 'फोन-शैली स्वास्थ्य सेवा' : 'Phone-style health access',
+      icon: <Phone size={24} color="#FFF" />,
+      color: '#795548',
+      onPress: () => router.push('/rural'),
+    },
   ];
 
   const phase = getCyclePhase();
@@ -226,11 +253,26 @@ export default function HomeScreen() {
         {/* Header */}
         <View style={styles.header}>
           <View>
-            <Text style={styles.greeting}>{greeting}</Text>
+            <Text style={styles.greeting}>
+              {greeting}{user?.name ? ` ${user.name}` : ''}
+            </Text>
             <Text style={styles.appName}>{t.appName}</Text>
           </View>
           <LanguageSwitch />
         </View>
+
+        {/* PIN Protected Badge */}
+        {user && (
+          <View style={styles.pinBadge}>
+            <Lock size={14} color="#7B1FA2" />
+            <Text style={styles.pinBadgeText}>
+              {language === 'hi'
+                ? `PIN सुरक्षित • ${user.name || 'उपयोगकर्ता'}`
+                : `PIN Protected • ${user.name || 'User'}`
+              }
+            </Text>
+          </View>
+        )}
 
         {/* Hero Card */}
         <View style={styles.heroCard}>
@@ -243,12 +285,39 @@ export default function HomeScreen() {
           
           {cycleDay ? (
             <View style={styles.cycleInfo}>
-              <View style={styles.cycleDayBox}>
-                <Text style={styles.cycleDayNumber}>{cycleDay}</Text>
-                <Text style={styles.cycleDayLabel}>
-                  {language === 'hi' ? 'दिन' : 'Day'}
-                </Text>
-              </View>
+              {/* Days left badge - top left */}
+              {nextPeriodDays !== null && nextPeriodDays > 0 && (
+                <View style={styles.daysLeftBadge}>
+                  <Clock size={14} color="#E91E63" />
+                  <Text style={styles.daysLeftText}>
+                    {language === 'hi'
+                      ? `${nextPeriodDays} दिन बाकी`
+                      : `${nextPeriodDays} days left`
+                    }
+                  </Text>
+                </View>
+              )}
+
+              {/* Month and Date display */}
+              {nextPeriodDate ? (
+                <View style={styles.cycleDayBox}>
+                  <Text style={styles.cycleDateMonth}>
+                    {nextPeriodDate.toLocaleString(language === 'hi' ? 'hi-IN' : 'en-US', { month: 'long' })}
+                  </Text>
+                  <Text style={styles.cycleDayNumber}>
+                    {nextPeriodDate.getDate()}
+                  </Text>
+                  <Text style={styles.cycleDayLabel}>
+                    {language === 'hi' ? 'अगला पीरियड' : 'Next Period'}
+                  </Text>
+                </View>
+              ) : (
+                <View style={styles.cycleDayBox}>
+                  <Text style={styles.cycleDateMonth}>
+                    {language === 'hi' ? `दिन ${cycleDay}` : `Day ${cycleDay}`}
+                  </Text>
+                </View>
+              )}
               
               {phase && (
                 <View style={styles.phaseInfo}>
@@ -257,18 +326,6 @@ export default function HomeScreen() {
                     <Text style={[styles.phaseText, { color: phase.color }]}>{phase.phase}</Text>
                   </View>
                   <Text style={styles.phaseTip}>{phase.tip}</Text>
-                </View>
-              )}
-              
-              {nextPeriodDays !== null && nextPeriodDays > 0 && (
-                <View style={styles.nextPeriodBox}>
-                  <TrendingUp size={16} color="#FFB6C1" />
-                  <Text style={styles.nextPeriodText}>
-                    {language === 'hi' 
-                      ? `अगला पीरियड ~${nextPeriodDays} दिन में`
-                      : `Next period in ~${nextPeriodDays} days`
-                    }
-                  </Text>
                 </View>
               )}
             </View>
@@ -294,7 +351,7 @@ export default function HomeScreen() {
         </View>
 
         {/* Profile Setup Prompt */}
-        {!hasProfile && (
+        {!hasProfile ? (
           <TouchableOpacity
             style={styles.profilePromptCard}
             onPress={() => router.push('/profile-setup')}
@@ -313,6 +370,25 @@ export default function HomeScreen() {
                 </Text>
               </View>
               <ChevronRight size={20} color="#FF6B6B" />
+            </View>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            style={styles.profileEditCard}
+            onPress={() => router.push('/profile-setup')}
+            activeOpacity={0.8}
+          >
+            <View style={styles.profilePromptContent}>
+              <User size={22} color="#7B1FA2" />
+              <View style={{ flex: 1, marginLeft: 12 }}>
+                <Text style={styles.profileEditTitle}>
+                  {user?.name || (language === 'hi' ? 'मेरी प्रोफ़ाइल' : 'My Profile')}
+                </Text>
+                <Text style={styles.profilePromptSubtitle}>
+                  {language === 'hi' ? 'प्रोफ़ाइल देखें या संपादित करें' : 'View or edit profile'}
+                </Text>
+              </View>
+              <ChevronRight size={20} color="#7B1FA2" />
             </View>
           </TouchableOpacity>
         )}
@@ -340,6 +416,53 @@ export default function HomeScreen() {
             </TouchableOpacity>
           ))}
         </View>
+
+        {/* Previous Risk Reports */}
+        {riskReports.length > 0 && (
+          <View style={styles.riskReportsSection}>
+            <Text style={styles.sectionTitle}>
+              {language === 'hi' ? 'पिछली जोखिम रिपोर्ट' : 'Previous Risk Reports'}
+            </Text>
+            {riskReports.map((report, index) => {
+              const riskColor = report.risk_level === 'High' ? '#FF5722'
+                : report.risk_level === 'Medium' ? '#FFC107' : '#4CAF50';
+              const riskIcon = report.risk_level === 'High'
+                ? <AlertTriangle size={18} color={riskColor} />
+                : report.risk_level === 'Medium'
+                  ? <AlertCircle size={18} color={riskColor} />
+                  : <CheckCircle size={18} color={riskColor} />;
+              const dateStr = report.timestamp
+                ? new Date(report.timestamp).toLocaleDateString(language === 'hi' ? 'hi-IN' : 'en-US', {
+                    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                  })
+                : '';
+              const riskLabel = report.risk_level === 'High'
+                ? (language === 'hi' ? 'उच्च जोखिम' : 'High Risk')
+                : report.risk_level === 'Medium'
+                  ? (language === 'hi' ? 'मध्यम जोखिम' : 'Medium Risk')
+                  : (language === 'hi' ? 'कम जोखिम' : 'Low Risk');
+              return (
+                <View key={index} style={[styles.riskReportCard, { borderLeftColor: riskColor }]}>
+                  <View style={styles.riskReportHeader}>
+                    {riskIcon}
+                    <Text style={[styles.riskReportLevel, { color: riskColor }]}>{riskLabel}</Text>
+                    {report.confidence != null && (
+                      <Text style={styles.riskReportConfidence}>
+                        {Math.round((report.confidence || 0) * 100)}%
+                      </Text>
+                    )}
+                  </View>
+                  <Text style={styles.riskReportDate}>{dateStr}</Text>
+                  {report.recommendation_key && (
+                    <Text style={styles.riskReportRec} numberOfLines={2}>
+                      {translations[language][report.recommendation_key] || report.recommendation_key}
+                    </Text>
+                  )}
+                </View>
+              );
+            })}
+          </View>
+        )}
 
         {/* Privacy Badge */}
         <View style={styles.privacyBadge}>
@@ -384,6 +507,23 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#333',
   },
+  pinBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    marginLeft: 20,
+    marginTop: 8,
+    backgroundColor: '#F3E5F5',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+    gap: 6,
+  },
+  pinBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#7B1FA2',
+  },
   heroCard: {
     backgroundColor: '#FFF',
     marginHorizontal: 20,
@@ -410,9 +550,32 @@ const styles = StyleSheet.create({
   cycleInfo: {
     alignItems: 'center',
   },
+  daysLeftBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: '#FCE4EC',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+    gap: 5,
+    marginBottom: 10,
+  },
+  daysLeftText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#E91E63',
+  },
   cycleDayBox: {
     alignItems: 'center',
     marginBottom: 15,
+  },
+  cycleDateMonth: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#E91E63',
+    textTransform: 'capitalize',
+    marginBottom: 2,
   },
   cycleDayNumber: {
     fontSize: 64,
@@ -446,19 +609,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
     textAlign: 'center',
   },
-  nextPeriodBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFF5F5',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 12,
-    gap: 6,
-  },
-  nextPeriodText: {
-    fontSize: 13,
-    color: '#666',
-  },
+
   noCycleInfo: {
     alignItems: 'center',
     paddingVertical: 10,
@@ -505,6 +656,26 @@ const styles = StyleSheet.create({
   profilePromptSubtitle: {
     fontSize: 12,
     color: '#999',
+  },
+  profileEditCard: {
+    marginHorizontal: 20,
+    marginTop: 15,
+    backgroundColor: '#FFF',
+    borderRadius: 15,
+    padding: 15,
+    borderWidth: 1,
+    borderColor: '#E1BEE7',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+  },
+  profileEditTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#7B1FA2',
+    marginBottom: 2,
   },
   tipCard: {
     flexDirection: 'row',
@@ -571,5 +742,46 @@ const styles = StyleSheet.create({
   privacyText: {
     fontSize: 12,
     color: '#4CAF50',
+  },
+  riskReportsSection: {
+    marginTop: 10,
+    paddingHorizontal: 20,
+  },
+  riskReportCard: {
+    backgroundColor: '#FFF',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 10,
+    borderLeftWidth: 4,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+  },
+  riskReportHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  riskReportLevel: {
+    fontSize: 15,
+    fontWeight: '700',
+    flex: 1,
+  },
+  riskReportConfidence: {
+    fontSize: 13,
+    color: '#999',
+  },
+  riskReportDate: {
+    fontSize: 12,
+    color: '#999',
+    marginTop: 4,
+  },
+  riskReportRec: {
+    fontSize: 13,
+    color: '#555',
+    marginTop: 4,
+    lineHeight: 18,
   },
 });

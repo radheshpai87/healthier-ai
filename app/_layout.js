@@ -7,7 +7,7 @@ import { LanguageProvider } from '../src/context/LanguageContext';
 import { AuthProvider, useAuth } from '../src/context/AuthContext';
 import { startAutoSync, stopAutoSync } from '../src/services/syncService';
 import { getRole } from '../src/services/storageService';
-import { restoreSession, getCurrentUserId } from '../src/services/authService';
+import { getCurrentUserId } from '../src/services/authService';
 import { ROLES } from '../src/utils/constants';
 import { prewarmMLApi } from '../src/services/mlApiService';
 
@@ -26,17 +26,17 @@ function AppNavigator() {
     if (checkingRef.current) return;
     checkingRef.current = true;
     try {
-      // 1. Restore session (sets _currentUserId if valid, else null)
-      const restoredUser = await restoreSession();
-      // 2. Hydrate auth context with the now-known user
-      await refreshUser();
-      // 3. Only read role if a session exists — prevents legacy unscoped keys from leaking
-      const sessionActive = !!getCurrentUserId();
-      setHasSession(sessionActive);
-      if (sessionActive) {
+      // 1. Check if there's an active session (user already authenticated via PIN this launch)
+      const currentId = getCurrentUserId();
+      if (currentId) {
+        // Session is active (user logged in via PIN this launch) — load role
+        await refreshUser();
+        setHasSession(true);
         const role = await getRole();
         setUserRole(role || null);
       } else {
+        // No active session — user needs to pick profile and enter PIN
+        setHasSession(false);
         setUserRole(null);
       }
     } catch (e) {

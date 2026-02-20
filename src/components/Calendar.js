@@ -26,7 +26,7 @@ export default function CycleCalendar() {
           if (typeof date === 'string') {
             marked[date] = {
               selected: true,
-              selectedColor: '#FFB6C1',
+              selectedColor: '#FFD600',
               marked: true,
               dotColor: '#FF6B6B',
             };
@@ -58,7 +58,7 @@ export default function CycleCalendar() {
       ...markedDates,
       [selectedDate]: {
         selected: true,
-        selectedColor: '#FFB6C1',
+        selectedColor: '#FFD600',
         marked: true,
         dotColor: '#FF6B6B',
       },

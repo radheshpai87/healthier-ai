@@ -23,7 +23,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { LanguageContext } from '../context/LanguageContext';
-import { getUsers, loginWithPin, logout } from '../services/authService';
+import { getUsers, loginWithPin, logout, deleteUserById } from '../services/authService';
 import { useAuth } from '../context/AuthContext';
 
 // ── Translations ───────────────────────────────
@@ -39,6 +39,8 @@ const t = {
     noUsers: 'No profiles yet.',
     noUsersHint: 'Create your first profile to get started.',
     delete: 'Delete',
+    deleteConfirm: 'Are you sure you want to delete this profile?',
+    deleteTitle: 'Delete Profile',
   },
   hi: {
     title: 'AuraHealth',
@@ -51,6 +53,8 @@ const t = {
     noUsers: 'अभी कोई प्रोफाइल नहीं है।',
     noUsersHint: 'शुरू करने के लिए पहली प्रोफाइल बनाएं।',
     delete: 'हटाएं',
+    deleteConfirm: 'क्या आप वाकई इस प्रोफाइल को हटाना चाहते हैं?',
+    deleteTitle: 'प्रोफ़ाइल हटाएं',
   },
 };
 
@@ -174,6 +178,25 @@ export default function UserLoginScreen() {
     router.replace('/role-select');
   };
 
+  const handleDeleteUser = (user) => {
+    Alert.alert(
+      txt.deleteTitle,
+      `${txt.deleteConfirm}\n\n${user.name}`,
+      [
+        { text: txt.back?.replace('← ', '') || 'Cancel', style: 'cancel' },
+        {
+          text: txt.delete,
+          style: 'destructive',
+          onPress: async () => {
+            await deleteUserById(user.id);
+            const list = await getUsers();
+            setUsers(list);
+          },
+        },
+      ]
+    );
+  };
+
   if (loading) {
     return (
       <SafeAreaView style={styles.centered}>
@@ -233,22 +256,30 @@ export default function UserLoginScreen() {
         <>
           <ScrollView contentContainerStyle={styles.grid} showsVerticalScrollIndicator={false}>
             {users.map((u) => (
-              <TouchableOpacity
-                key={u.id}
-                style={styles.userCard}
-                onPress={() => handleUserSelect(u)}
-                activeOpacity={0.75}
-              >
-                <View style={[styles.avatarCircle, { backgroundColor: u.avatarColor || '#C2185B' }]}>
-                  <Text style={styles.avatarLetter}>
-                    {(u.name || 'U')[0].toUpperCase()}
+              <View key={u.id} style={styles.userCardWrapper}>
+                <TouchableOpacity
+                  style={styles.userCard}
+                  onPress={() => handleUserSelect(u)}
+                  activeOpacity={0.75}
+                >
+                  <View style={[styles.avatarCircle, { backgroundColor: u.avatarColor || '#C2185B' }]}>
+                    <Text style={styles.avatarLetter}>
+                      {(u.name || 'U')[0].toUpperCase()}
+                    </Text>
+                  </View>
+                  <Text style={styles.userName} numberOfLines={1}>{u.name}</Text>
+                  <Text style={styles.userRole}>
+                    {u.role === 'asha' ? 'ASHA Worker' : 'Woman'}
                   </Text>
-                </View>
-                <Text style={styles.userName} numberOfLines={1}>{u.name}</Text>
-                <Text style={styles.userRole}>
-                  {u.role === 'asha' ? 'ASHA Worker' : 'Woman'}
-                </Text>
-              </TouchableOpacity>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.deleteBtn}
+                  onPress={() => handleDeleteUser(u)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.deleteBtnText}>✕</Text>
+                </TouchableOpacity>
+              </View>
             ))}
           </ScrollView>
 
@@ -303,6 +334,9 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
     gap: 16,
   },
+  userCardWrapper: {
+    position: 'relative',
+  },
   userCard: {
     width: 130,
     alignItems: 'center',
@@ -315,6 +349,28 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 2 },
     elevation: 3,
+  },
+  deleteBtn: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: '#E53935',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 1 },
+  },
+  deleteBtnText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
   },
   avatarCircle: {
     width: 64,
