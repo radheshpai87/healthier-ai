@@ -79,9 +79,9 @@ function AppNavigator() {
         router.replace('/login');
       }
     } else if (userRole === ROLES.ASHA) {
-      const ashaAllowed = ['asha', 'role-select', 'symptoms', 'result'];
+      const ashaAllowed = ['(tabs)', 'role-select', 'symptoms', 'result'];
       if (!ashaAllowed.includes(currentScreen)) {
-        router.replace('/asha');
+        router.replace('/(tabs)/rural');
       }
     }
   }, [isReady, userRole, hasSession, segments]);
@@ -117,7 +117,7 @@ function AppNavigator() {
         <Stack.Screen name="symptoms"      options={{ title: 'Health Assessment' }} />
         <Stack.Screen name="result"        options={{ title: 'Result', headerBackVisible: false }} />
         <Stack.Screen name="profile-setup" options={{ title: 'Profile Setup',   headerShown: false }} />
-        <Stack.Screen name="asha"          options={{ title: 'ASHA Dashboard',  headerShown: false }} />
+        <Stack.Screen name="asha"          options={{ title: 'IVR Rural Mode',   headerShown: false }} />
         <Stack.Screen name="login"         options={{ title: 'Login',           headerShown: false }} />
       </Stack>
     </LanguageProvider>

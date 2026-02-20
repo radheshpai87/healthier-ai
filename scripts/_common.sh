@@ -37,6 +37,14 @@ clear_all_caches() {
 
     echo -e "${YELLOW}Resetting all caches and state...${NC}"
 
+    # ── Kill stale processes first ─────────────────────────────────────────────
+    pkill -f "expo"          2>/dev/null || true
+    pkill -f "metro"         2>/dev/null || true
+    pkill -f "react-scripts" 2>/dev/null || true
+    pkill -f "node server"   2>/dev/null || true
+    sleep 0.5
+    echo -e "  ${GREEN}✓${NC} Stale expo/metro/node processes killed"
+
     # ── Kill Expo / Metro ports ───────────────────────────────────────────────
     kill_port 8081   # Metro bundler
     kill_port 19000  # Expo CLI / DevTools
@@ -173,14 +181,12 @@ print('  Updated dashboard/.env → REACT_APP_API_URL = ${BACKEND_URL}')
     fi
 }
 
-# ── Install deps if missing ───────────────────────────────────────────────────
+# ── Install / refresh deps ───────────────────────────────────────────────────
 # Usage: ensure_deps "$ROOT_DIR" "Mobile App" "--legacy-peer-deps"
 ensure_deps() {
     local dir="$1" name="$2" flags="${3:-}"
-    if [ ! -d "$dir/node_modules" ]; then
-        echo -e "${YELLOW}[$name] node_modules not found — installing...${NC}"
-        (cd "$dir" && npm install $flags)
-        echo -e "  ${GREEN}✓ [$name] Dependencies installed${NC}"
-        echo ""
-    fi
+    echo -e "${YELLOW}[$name] Installing dependencies...${NC}"
+    (cd "$dir" && npm install $flags)
+    echo -e "  ${GREEN}✓ [$name] Dependencies ready${NC}"
+    echo ""
 }

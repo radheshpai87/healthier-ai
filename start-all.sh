@@ -59,24 +59,6 @@ echo -e "${GREEN}Detected LAN IP: ${CYAN}${LAN_IP}${NC}"
 echo -e "${GREEN}Backend URL:     ${CYAN}${BACKEND_URL}${NC}"
 echo ""
 
-# ── Update app.json with current LAN IP ────────
-if command -v python3 &>/dev/null; then
-    python3 -c "
-import json, sys
-try:
-    with open('${ROOT_DIR}/app.json', 'r') as f:
-        config = json.load(f)
-    config['expo']['extra']['backendUrl'] = '${BACKEND_URL}'
-    with open('${ROOT_DIR}/app.json', 'w') as f:
-        json.dump(config, f, indent=2)
-        f.write('\n')
-    print('  Updated app.json -> backendUrl = ${BACKEND_URL}')
-except Exception as e:
-    print(f'  Warning: Could not update app.json: {e}', file=sys.stderr)
-"
-    echo ""
-fi
-
 # ── Cleanup on exit ─────────────────────────────
 CLEANING_UP=false
 cleanup() {

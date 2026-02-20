@@ -35,8 +35,8 @@ const t = {
     subtitle: 'Select your role to continue',
     womanTitle: 'Woman',
     womanDesc: 'Track your health, log symptoms, and get risk assessments',
-    ashaTitle: 'ASHA Worker',
-    ashaDesc: 'Conduct field visits and assess patient health risks',
+    ashaTitle: 'IVR Rural Worker',
+    ashaDesc: 'Access phone-based IVR health services and assist rural communities',
     detectLocation: 'Detect My Location',
     detecting: 'Detecting your location...',
     locationDetected: 'Location detected',
@@ -53,8 +53,8 @@ const t = {
     subtitle: 'जारी रखने के लिए अपनी भूमिका चुनें',
     womanTitle: 'महिला',
     womanDesc: 'अपने स्वास्थ्य को ट्रैक करें, लक्षण दर्ज करें, और जोखिम मूल्यांकन प्राप्त करें',
-    ashaTitle: 'आशा कार्यकर्ता',
-    ashaDesc: 'क्षेत्र दौरे करें और रोगी स्वास्थ्य जोखिम का आकलन करें',
+    ashaTitle: 'IVR ग्रामीण कार्यकर्ता',
+    ashaDesc: 'फोन-आधारित IVR स्वास्थ्य सेवाएं प्राप्त करें और ग्रामीण समुदायों की सहायता करें',
     detectLocation: 'मेरा स्थान पहचानें',
     detecting: 'आपका स्थान पहचान रहे हैं...',
     locationDetected: 'स्थान पहचाना गया',
@@ -127,7 +127,7 @@ export default function RoleSelectionScreen() {
     await saveRole(selectedRole);
 
     if (selectedRole === ROLES.ASHA) {
-      // Show PIN setup modal for ASHA workers
+      // Show PIN setup modal for IVR Rural Workers
       setShowAshaPinModal(true);
     } else {
       // Woman role → go to profile setup first
@@ -162,7 +162,7 @@ export default function RoleSelectionScreen() {
     }
     try {
       await registerUser({
-        name: ashaName.trim() || (lang === 'hi' ? 'आशा कार्यकर्ता' : 'ASHA Worker'),
+        name: ashaName.trim() || (lang === 'hi' ? 'IVR कार्यकर्ता' : 'IVR Worker'),
         role: ROLES.ASHA,
         pin: confirmedPin,
       });
@@ -171,11 +171,11 @@ export default function RoleSelectionScreen() {
       // Hydrate AuthContext immediately
       await refreshUser();
       setShowAshaPinModal(false);
-      router.replace('/asha');
+      router.replace('/(tabs)/rural');
     } catch (err) {
-      console.error('[RoleSelect] ASHA registerUser failed:', err);
+      console.error('[RoleSelect] IVR registerUser failed:', err);
       setShowAshaPinModal(false);
-      router.replace('/asha');
+      router.replace('/(tabs)/rural');
     }
   };
 
@@ -275,7 +275,7 @@ export default function RoleSelectionScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>
-              {lang === 'hi' ? 'आशा कार्यकर्ता खाता' : 'ASHA Worker Account'}
+              {lang === 'hi' ? 'IVR ग्रामीण कार्यकर्ता' : 'IVR Rural Worker'}
             </Text>
 
             <TextInput
