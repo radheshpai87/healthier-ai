@@ -1,11 +1,15 @@
 import * as SecureStore from 'expo-secure-store';
+import { scopedKey } from '../services/authService';
 
 const KEYS = {
   PERIOD_DATA: 'aurahealth_period_data',
-  MOOD_DATA: 'aurahealth_mood_data',
-  LANGUAGE: 'aurahealth_language',
-  SYMPTOMS: 'aurahealth_symptoms',
+  MOOD_DATA:   'aurahealth_mood_data',
+  LANGUAGE:    'aurahealth_language',
+  SYMPTOMS:    'aurahealth_symptoms',
 };
+
+/** Shorthand: scope a KEYS value to the current user. */
+const sk = (key) => scopedKey(key);
 
 /**
  * Generic data getter for secure storage
@@ -14,7 +18,7 @@ const KEYS = {
  */
 export async function getData(key) {
   try {
-    const fullKey = `aurahealth_${key}`;
+    const fullKey = sk(`aurahealth_${key}`);
     const data = await SecureStore.getItemAsync(fullKey);
     return data ? JSON.parse(data) : null;
   } catch (error) {
@@ -31,7 +35,7 @@ export async function getData(key) {
  */
 export async function saveData(key, value) {
   try {
-    const fullKey = `aurahealth_${key}`;
+    const fullKey = sk(`aurahealth_${key}`);
     await SecureStore.setItemAsync(fullKey, JSON.stringify(value));
     return true;
   } catch (error) {
@@ -46,7 +50,7 @@ export async function saveData(key, value) {
  */
 export async function savePeriodData(dates) {
   try {
-    await SecureStore.setItemAsync(KEYS.PERIOD_DATA, JSON.stringify(dates));
+    await SecureStore.setItemAsync(sk(KEYS.PERIOD_DATA), JSON.stringify(dates));
     return true;
   } catch (error) {
     console.error('Error saving period data:', error);
@@ -60,7 +64,7 @@ export async function savePeriodData(dates) {
  */
 export async function getPeriodData() {
   try {
-    const data = await SecureStore.getItemAsync(KEYS.PERIOD_DATA);
+    const data = await SecureStore.getItemAsync(sk(KEYS.PERIOD_DATA));
     return data ? JSON.parse(data) : null;
   } catch (error) {
     console.error('Error getting period data:', error);
@@ -77,7 +81,7 @@ export async function saveMoodData(date, mood) {
   try {
     const existingData = await getMoodData() || {};
     existingData[date] = mood;
-    await SecureStore.setItemAsync(KEYS.MOOD_DATA, JSON.stringify(existingData));
+    await SecureStore.setItemAsync(sk(KEYS.MOOD_DATA), JSON.stringify(existingData));
     return true;
   } catch (error) {
     console.error('Error saving mood data:', error);
@@ -91,7 +95,7 @@ export async function saveMoodData(date, mood) {
  */
 export async function getMoodData() {
   try {
-    const data = await SecureStore.getItemAsync(KEYS.MOOD_DATA);
+    const data = await SecureStore.getItemAsync(sk(KEYS.MOOD_DATA));
     return data ? JSON.parse(data) : null;
   } catch (error) {
     console.error('Error getting mood data:', error);
@@ -105,7 +109,7 @@ export async function getMoodData() {
  */
 export async function saveLanguage(language) {
   try {
-    await SecureStore.setItemAsync(KEYS.LANGUAGE, language);
+    await SecureStore.setItemAsync(sk(KEYS.LANGUAGE), language);
     return true;
   } catch (error) {
     console.error('Error saving language:', error);
@@ -119,7 +123,7 @@ export async function saveLanguage(language) {
  */
 export async function getLanguage() {
   try {
-    const language = await SecureStore.getItemAsync(KEYS.LANGUAGE);
+    const language = await SecureStore.getItemAsync(sk(KEYS.LANGUAGE));
     return language || 'en';
   } catch (error) {
     console.error('Error getting language:', error);
@@ -136,7 +140,7 @@ export async function saveSymptoms(date, symptoms) {
   try {
     const existingData = await getSymptoms() || {};
     existingData[date] = symptoms;
-    await SecureStore.setItemAsync(KEYS.SYMPTOMS, JSON.stringify(existingData));
+    await SecureStore.setItemAsync(sk(KEYS.SYMPTOMS), JSON.stringify(existingData));
     return true;
   } catch (error) {
     console.error('Error saving symptoms:', error);
@@ -150,7 +154,7 @@ export async function saveSymptoms(date, symptoms) {
  */
 export async function getSymptoms() {
   try {
-    const data = await SecureStore.getItemAsync(KEYS.SYMPTOMS);
+    const data = await SecureStore.getItemAsync(sk(KEYS.SYMPTOMS));
     return data ? JSON.parse(data) : null;
   } catch (error) {
     console.error('Error getting symptoms:', error);
@@ -164,9 +168,9 @@ export async function getSymptoms() {
 export async function clearAllData() {
   try {
     await Promise.all([
-      SecureStore.deleteItemAsync(KEYS.PERIOD_DATA),
-      SecureStore.deleteItemAsync(KEYS.MOOD_DATA),
-      SecureStore.deleteItemAsync(KEYS.SYMPTOMS),
+      SecureStore.deleteItemAsync(sk(KEYS.PERIOD_DATA)),
+      SecureStore.deleteItemAsync(sk(KEYS.MOOD_DATA)),
+      SecureStore.deleteItemAsync(sk(KEYS.SYMPTOMS)),
     ]);
     return true;
   } catch (error) {

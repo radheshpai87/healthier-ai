@@ -41,8 +41,8 @@ echo -e "${CYAN}║       AuraHealth — Starting All Services  ║${NC}"
 echo -e "${CYAN}╚═══════════════════════════════════════════╝${NC}"
 echo ""
 
-# ── Reset: kill all ports, clear all caches (incl. dashboard) ────────────
-# Ensure a completely fresh start every run
+# ── Reset: kill all ports, clear ALL caches on every run ─────────────────
+echo -e "${YELLOW}Clearing all caches for a clean start...${NC}"
 if [ ! -f "$ROOT_DIR/dashboard/.env" ] && [ -f "$ROOT_DIR/dashboard/.env.example" ]; then
     cp "$ROOT_DIR/dashboard/.env.example" "$ROOT_DIR/dashboard/.env"
 fi

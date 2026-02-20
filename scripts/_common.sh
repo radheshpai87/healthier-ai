@@ -35,12 +35,15 @@ clear_all_caches() {
 
     # ── Watchman (file-watcher) ───────────────────────────────────────────────
     if command -v watchman &>/dev/null; then
-        watchman watch-del-all 2>/dev/null && \
-            echo -e "  ${GREEN}✓${NC} Watchman watch list cleared" || true
+        watchman watch-del-all  2>/dev/null || true
+        watchman shutdown-server 2>/dev/null || true
+        echo -e "  ${GREEN}✓${NC} Watchman shut down and watch list cleared"
     fi
 
-    # ── Expo state directory ──────────────────────────────────────────────────
-    rm -rf "$root/.expo" 2>/dev/null || true
+    # ── Expo state directory (local + global) ─────────────────────────────────
+    rm -rf "$root/.expo"       2>/dev/null || true
+    rm -rf "$HOME/.expo"       2>/dev/null || true
+    rm -rf "$HOME/.expo-cli"   2>/dev/null || true
 
     # ── Metro bundler disk cache (node_modules/.cache) ───────────────────────
     rm -rf "$root/node_modules/.cache" 2>/dev/null || true
@@ -60,6 +63,9 @@ clear_all_caches() {
     # ── Babel transform cache ─────────────────────────────────────────────────
     rm -rf "$root/.babel_transform_cache" 2>/dev/null || true
     rm -rf "$HOME/.babel.json"            2>/dev/null || true
+
+    # ── npm / yarn shared cache (transform artifacts) ─────────────────────────
+    npm cache clean --force 2>/dev/null || true
 
     # ── Dashboard (React scripts) cache if requested ──────────────────────────
     if [ "$include_dashboard" = "dashboard" ]; then

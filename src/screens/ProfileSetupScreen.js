@@ -35,6 +35,9 @@ import { Calendar } from 'react-native-calendars';
 import { LanguageContext } from '../context/LanguageContext';
 import { saveUserProfile, getUserProfile } from '../services/HealthDataLogger';
 import { savePeriodData, getPeriodData } from '../utils/storage';
+import { registerUser } from '../services/authService';
+import { getRole, saveRole } from '../services/storageService';
+import { useAuth } from '../context/AuthContext';
 
 // ── Translations ───────────────────────────────
 const t = {
@@ -101,6 +104,7 @@ const t = {
 export default function ProfileSetupScreen() {
   const router = useRouter();
   const { language } = useContext(LanguageContext);
+  const { refreshUser } = useAuth();
   const lang = language === 'hi' ? 'hi' : 'en';
   const texts = t[lang];
 
@@ -112,6 +116,16 @@ export default function ProfileSetupScreen() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [errors, setErrors] = useState({});
   const [isEditing, setIsEditing] = useState(false);
+
+  // PIN creation state (only shown for new registrations)
+  const [showPinSetup, setShowPinSetup] = useState(false);
+  const [displayName, setDisplayName] = useState('');
+  const [pin1, setPin1] = useState('');
+  const [pin2, setPin2] = useState('');
+  const [pinStep, setPinStep] = useState(1); // 1 = create, 2 = confirm
+  const [pinError, setPinError] = useState('');
+  // Holds profile + period data until user ID is assigned
+  const [pendingProfileData, setPendingProfileData] = useState(null);
 
   // Pre-fill existing profile data when editing
   useEffect(() => {
@@ -192,17 +206,16 @@ export default function ProfileSetupScreen() {
       if (weight.trim()) profile.weight = parseFloat(weight);
       if (cycleLength.trim()) profile.avgCycleLength = parseInt(cycleLength, 10);
 
-      await saveUserProfile(profile);
-
-      // If last period date was selected, merge with existing period data
-      if (lastPeriodDate) {
-        const existing = await getPeriodData();
-        const allDates = new Set(Array.isArray(existing) ? existing : []);
-        allDates.add(lastPeriodDate);
-        await savePeriodData([...allDates]);
-      }
-
       if (isEditing) {
+        // When editing, user already has an ID — save immediately (scoped)
+        await saveUserProfile(profile);
+
+        if (lastPeriodDate) {
+          const existing = await getPeriodData();
+          const allDates = new Set(Array.isArray(existing) ? existing : []);
+          allDates.add(lastPeriodDate);
+          await savePeriodData([...allDates]);
+        }
         // When editing from Settings/Home, go back
         if (router.canGoBack()) {
           router.back();
@@ -210,7 +223,9 @@ export default function ProfileSetupScreen() {
           router.replace('/(tabs)');
         }
       } else {
-        router.replace('/(tabs)');
+        // New user — stash profile data, show PIN creation
+        setPendingProfileData({ profile, lastPeriodDate });
+        setShowPinSetup(true);
       }
     } catch (error) {
       console.error('[ProfileSetup] Save failed:', error);
@@ -220,9 +235,65 @@ export default function ProfileSetupScreen() {
 
   // ── Skip ─────────────────────────────────────
   const handleSkip = () => {
-    if (isEditing && router.canGoBack()) {
-      router.back();
+    // Skip is only valid when editing an existing profile (acts as Cancel)
+    if (isEditing) {
+      if (router.canGoBack()) router.back();
+      else router.replace('/(tabs)');
+    }
+    // New users must complete PIN setup to enable login/session remembering
+  };
+
+  // ── PIN Creation (new user registration) ──
+  const handlePinDigit = (digit) => {
+    if (pinStep === 1) {
+      const next = pin1 + digit;
+      if (next.length <= 4) setPin1(next);
+      if (next.length === 4) setPinStep(2);
     } else {
+      const next = pin2 + digit;
+      if (next.length <= 4) setPin2(next);
+      if (next.length === 4) confirmPin(next);
+    }
+  };
+
+  const handlePinDelete = () => {
+    if (pinStep === 1) setPin1((p) => p.slice(0, -1));
+    else setPin2((p) => p.slice(0, -1));
+  };
+
+  const confirmPin = async (confirmedPin) => {
+    if (pin1 !== confirmedPin) {
+      setPinError(lang === 'hi' ? 'PIN मेल नहीं खाता। पुनः प्रयास करें।' : 'PINs do not match. Try again.');
+      setPin1('');
+      setPin2('');
+      setPinStep(1);
+      return;
+    }
+    try {
+      const role = await getRole();
+      // registerUser sets _currentUserId so all storage calls below use scoped keys
+      await registerUser({
+        name: displayName.trim() || (lang === 'hi' ? 'उपयोगकर्ता' : 'User'),
+        role: role || 'woman',
+        pin: confirmedPin,
+      });
+      // Re-save role to the now-active scoped key
+      await saveRole(role || 'woman');
+
+      // Save profile + period data under the new user-scoped keys
+      if (pendingProfileData) {
+        await saveUserProfile(pendingProfileData.profile);
+        if (pendingProfileData.lastPeriodDate) {
+          await savePeriodData([pendingProfileData.lastPeriodDate]);
+        }
+      }
+
+      // Hydrate AuthContext so settings/header show the user immediately
+      await refreshUser();
+
+      router.replace('/(tabs)');
+    } catch (err) {
+      console.error('[ProfileSetup] registerUser failed:', err);
       router.replace('/(tabs)');
     }
   };
@@ -261,6 +332,29 @@ export default function ProfileSetupScreen() {
               : texts.title}
           </Text>
           <Text style={styles.subtitle}>{texts.subtitle}</Text>
+
+          {/* ── Name (for account display, only on new setup) ── */}
+          {!isEditing && (
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>
+                {lang === 'hi' ? 'आपका नाम' : 'Your Name'}
+              </Text>
+              <TextInput
+                style={styles.input}
+                value={displayName}
+                onChangeText={setDisplayName}
+                placeholder={lang === 'hi' ? 'जैसे प्रिया' : 'e.g. Priya'}
+                placeholderTextColor="#BBB"
+                maxLength={30}
+                returnKeyType="next"
+              />
+              <Text style={styles.hint}>
+                {lang === 'hi'
+                  ? 'लॉगिन स्क्रीन पर आपका नाम दिखाई देगा'
+                  : 'Shown on the login screen to identify your account'}
+              </Text>
+            </View>
+          )}
 
           {/* ── Age (Required) ─────────────── */}
           <View style={styles.inputGroup}>
@@ -369,25 +463,82 @@ export default function ProfileSetupScreen() {
             </Text>
           </TouchableOpacity>
 
-          {/* ── Skip Button ────────────────── */}
-          <TouchableOpacity
-            style={styles.skipBtn}
-            onPress={handleSkip}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.skipBtnText}>
-              {isEditing
-                ? (lang === 'hi' ? 'रद्द करें' : 'Cancel')
-                : texts.skipBtn}
+          {/* ── New-user hint ─────────────────────────────────── */}
+          {!isEditing && (
+            <Text style={styles.skipNote}>
+              {lang === 'hi'
+                ? '🔒 अगली स्क्रीन पर एक PIN बनाएं ताकि आप बाद में वापस लॉग इन कर सकें।'
+                : '🔒 Next, create a PIN so you can log back in later.'}
             </Text>
-          </TouchableOpacity>
-          {!isEditing && <Text style={styles.skipNote}>{texts.skipNote}</Text>}
+          )}
+
+          {/* ── Skip / Cancel Button — only shown when editing ─── */}
+          {isEditing && (
+            <TouchableOpacity
+              style={styles.skipBtn}
+              onPress={handleSkip}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.skipBtnText}>
+                {lang === 'hi' ? 'रद्द करें' : 'Cancel'}
+              </Text>
+            </TouchableOpacity>
+          )}
 
           {/* Privacy Note */}
           <Text style={styles.privacyNote}>{texts.privacyNote}</Text>
         </ScrollView>
       </KeyboardAvoidingView>
+      {/* ── PIN Creation Modal ─────────── */}
+      <Modal
+        visible={showPinSetup}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => {}}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { paddingBottom: 32 }]}>
+            <Text style={styles.modalTitle}>
+              {pinStep === 1
+                ? (lang === 'hi' ? '4 अंक PIN बनाएं' : 'Create a 4-digit PIN')
+                : (lang === 'hi' ? 'PIN की पुष्टि करें' : 'Confirm your PIN')}
+            </Text>
+            <Text style={{ color: '#999', textAlign: 'center', marginBottom: 16, fontSize: 13 }}>
+              {lang === 'hi'
+                ? 'यह PIN आपके खाते को सुरक्षित रखता है'
+                : 'This PIN protects your account on this device'}
+            </Text>
 
+            {/* Dots */}
+            <View style={pinSetupStyles.dotsRow}>
+              {[0, 1, 2, 3].map((i) => {
+                const filled = pinStep === 1 ? i < pin1.length : i < pin2.length;
+                return (
+                  <View key={i} style={[pinSetupStyles.dot, filled && pinSetupStyles.dotFilled]} />
+                );
+              })}
+            </View>
+
+            {pinError ? <Text style={{ color: '#E53935', textAlign: 'center', marginBottom: 8, fontSize: 13 }}>{pinError}</Text> : null}
+
+            {/* Keypad */}
+            {[['1','2','3'],['4','5','6'],['7','8','9'],['','0','⌫']].map((row, ri) => (
+              <View key={ri} style={pinSetupStyles.row}>
+                {row.map((k, ci) => (
+                  <TouchableOpacity
+                    key={ci}
+                    style={[pinSetupStyles.key, k === '' && pinSetupStyles.keyInvisible]}
+                    onPress={() => k === '⌫' ? handlePinDelete() : k !== '' ? handlePinDigit(k) : null}
+                    disabled={k === ''}
+                  >
+                    <Text style={pinSetupStyles.keyText}>{k}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            ))}
+          </View>
+        </View>
+      </Modal>
       {/* ── Date Picker Modal ──────────────── */}
       <Modal
         visible={showDatePicker}
@@ -584,5 +735,50 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#FFF',
+  },
+});
+
+const pinSetupStyles = StyleSheet.create({
+  dotsRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 16,
+    marginBottom: 16,
+  },
+  dot: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 2,
+    borderColor: '#C2185B',
+    backgroundColor: 'transparent',
+  },
+  dotFilled: {
+    backgroundColor: '#C2185B',
+  },
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 20,
+    marginBottom: 12,
+  },
+  key: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: '#FFF5F5',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#FFB6C1',
+  },
+  keyInvisible: {
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+  },
+  keyText: {
+    fontSize: 22,
+    fontWeight: '500',
+    color: '#333',
   },
 });

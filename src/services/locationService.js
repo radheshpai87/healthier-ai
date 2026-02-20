@@ -17,8 +17,10 @@
 import * as Location from 'expo-location';
 import * as SecureStore from 'expo-secure-store';
 import { STORAGE_KEYS } from '../utils/constants';
+import { scopedKey } from './authService';
 
 const LOCATION_KEY = 'aura_user_location';
+const sk = () => scopedKey(LOCATION_KEY);
 
 /**
  * Request location permissions (foreground only).
@@ -146,10 +148,10 @@ export async function detectLocation() {
  */
 export async function saveLocation(locationData) {
   try {
-    await SecureStore.setItemAsync(LOCATION_KEY, JSON.stringify(locationData));
+    await SecureStore.setItemAsync(sk(), JSON.stringify(locationData));
     // Also save the name as village code for backward compatibility
     await SecureStore.setItemAsync(
-      STORAGE_KEYS.VILLAGE_CODE,
+      scopedKey(STORAGE_KEYS.VILLAGE_CODE),
       (locationData.district || locationData.city || locationData.name || 'UNKNOWN').toUpperCase()
     );
   } catch (error) {
@@ -163,7 +165,7 @@ export async function saveLocation(locationData) {
  */
 export async function getSavedLocation() {
   try {
-    const data = await SecureStore.getItemAsync(LOCATION_KEY);
+    const data = await SecureStore.getItemAsync(sk());
     return data ? JSON.parse(data) : null;
   } catch (error) {
     console.error('[LocationService] Failed to get location:', error);
@@ -191,7 +193,7 @@ export async function getLocationDisplayName() {
  */
 export async function clearSavedLocation() {
   try {
-    await SecureStore.deleteItemAsync(LOCATION_KEY);
+    await SecureStore.deleteItemAsync(sk());
   } catch (error) {
     console.error('[LocationService] Failed to clear location:', error);
   }

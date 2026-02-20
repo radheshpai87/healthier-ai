@@ -11,40 +11,55 @@ CORE FEATURES TO IMPLEMENT:
 UI STYLE: Soft pastel theme (#FFF5F5, #FFB6C1), minimalist, accessible for rural users.
 */
 
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { LanguageProvider } from '../src/context/LanguageContext';
+import { AuthProvider, useAuth } from '../src/context/AuthContext';
 import { startAutoSync, stopAutoSync } from '../src/services/syncService';
 import { getRole } from '../src/services/storageService';
+import { restoreSession, getCurrentUserId } from '../src/services/authService';
 import { ROLES } from '../src/utils/constants';
 
-export default function RootLayout() {
+// ── Inner navigator — lives inside AuthProvider so it can use useAuth() ────
+function AppNavigator() {
   const [isReady, setIsReady] = useState(false);
-  const [userRole, setUserRole] = useState(undefined); // undefined = not yet checked
+  const [userRole, setUserRole] = useState(undefined);
+  const [hasSession, setHasSession] = useState(false);
   const router = useRouter();
   const segments = useSegments();
+  const { refreshUser } = useAuth();
 
-  // Check role on mount and whenever segments change
-  // Using a ref to debounce rapid segment changes
   const checkingRef = React.useRef(false);
 
-  const refreshRole = React.useCallback(async () => {
+  const refreshRole = useCallback(async () => {
     if (checkingRef.current) return;
     checkingRef.current = true;
     try {
-      const role = await getRole();
-      setUserRole(role || null);
+      // 1. Restore session (sets _currentUserId if valid, else null)
+      const restoredUser = await restoreSession();
+      // 2. Hydrate auth context with the now-known user
+      await refreshUser();
+      // 3. Only read role if a session exists — prevents legacy unscoped keys from leaking
+      const sessionActive = !!getCurrentUserId();
+      setHasSession(sessionActive);
+      if (sessionActive) {
+        const role = await getRole();
+        setUserRole(role || null);
+      } else {
+        setUserRole(null);
+      }
     } catch (e) {
       console.error('[Layout] Error checking role:', e);
+      setHasSession(false);
       setUserRole(null);
     } finally {
       checkingRef.current = false;
       if (!isReady) setIsReady(true);
     }
-  }, [isReady]);
+  }, [isReady, refreshUser]);
 
   // Initial load
   useEffect(() => {
@@ -56,36 +71,39 @@ export default function RootLayout() {
     if (isReady) refreshRole();
   }, [segments]);
 
-  // Route guard: redirect based on role
+  // Route guard
   useEffect(() => {
-    // Wait until role has been checked at least once
     if (!isReady || userRole === undefined) return;
 
     const currentScreen = segments[0];
+    const onboardingScreens = ['login', 'role-select', 'profile-setup'];
+
+    // No valid session → force to login (catches legacy data with no registered account)
+    if (!hasSession) {
+      if (!onboardingScreens.includes(currentScreen)) {
+        router.replace('/login');
+      }
+      return;
+    }
 
     if (!userRole) {
-      // No role set → send to role selection (unless already there or onboarding)
-      const allowedWithoutRole = ['role-select', 'profile-setup'];
-      if (!allowedWithoutRole.includes(currentScreen)) {
-        router.replace('/role-select');
+      if (!onboardingScreens.includes(currentScreen)) {
+        router.replace('/login');
       }
     } else if (userRole === ROLES.ASHA) {
-      // ASHA worker home is /asha, but allow assessment flow screens too
       const ashaAllowed = ['asha', 'role-select', 'symptoms', 'result'];
       if (!ashaAllowed.includes(currentScreen)) {
         router.replace('/asha');
       }
     }
-    // Woman role → no forced redirect, any screen is fine
-  }, [isReady, userRole, segments]);
+  }, [isReady, userRole, hasSession, segments]);
 
-  // Start background sync on app launch
+  // Background sync
   useEffect(() => {
     startAutoSync();
     return () => stopAutoSync();
   }, []);
 
-  // Show splash loader while checking role
   if (!isReady) {
     return (
       <View style={splashStyles.container}>
@@ -95,55 +113,35 @@ export default function RootLayout() {
   }
 
   return (
+    <LanguageProvider>
+      <StatusBar style="dark" />
+      <Stack
+        screenOptions={{
+          headerStyle: { backgroundColor: '#FFF5F5' },
+          headerTintColor: '#333',
+          headerTitleStyle: { fontWeight: '600' },
+          contentStyle: { backgroundColor: '#FFF5F5' },
+        }}
+      >
+        <Stack.Screen name="role-select"   options={{ title: 'Select Role',     headerShown: false }} />
+        <Stack.Screen name="(tabs)"        options={{ headerShown: false }} />
+        <Stack.Screen name="symptoms"      options={{ title: 'Health Assessment' }} />
+        <Stack.Screen name="result"        options={{ title: 'Result', headerBackVisible: false }} />
+        <Stack.Screen name="profile-setup" options={{ title: 'Profile Setup',   headerShown: false }} />
+        <Stack.Screen name="asha"          options={{ title: 'ASHA Dashboard',  headerShown: false }} />
+        <Stack.Screen name="login"         options={{ title: 'Login',           headerShown: false }} />
+      </Stack>
+    </LanguageProvider>
+  );
+}
+
+// ── Root layout — only wraps providers ────────────────────────────────────
+export default function RootLayout() {
+  return (
     <SafeAreaProvider>
-      <LanguageProvider>
-        <StatusBar style="dark" />
-        <Stack
-          screenOptions={{
-            headerStyle: {
-              backgroundColor: '#FFF5F5',
-            },
-            headerTintColor: '#333',
-            headerTitleStyle: {
-              fontWeight: '600',
-            },
-            contentStyle: {
-              backgroundColor: '#FFF5F5',
-            },
-          }}
-        >
-          {/* Role selection (entry point for new users) */}
-          <Stack.Screen
-            name="role-select"
-            options={{ title: 'Select Role', headerShown: false }}
-          />
-          {/* Main tabs */}
-          <Stack.Screen
-            name="(tabs)"
-            options={{ headerShown: false }}
-          />
-          {/* Symptom entry form */}
-          <Stack.Screen
-            name="symptoms"
-            options={{ title: 'Health Assessment' }}
-          />
-          {/* Assessment result */}
-          <Stack.Screen
-            name="result"
-            options={{ title: 'Result', headerBackVisible: false }}
-          />
-          {/* Woman profile setup (onboarding) */}
-          <Stack.Screen
-            name="profile-setup"
-            options={{ title: 'Profile Setup', headerShown: false }}
-          />
-          {/* ASHA worker dashboard */}
-          <Stack.Screen
-            name="asha"
-            options={{ title: 'ASHA Dashboard', headerShown: false }}
-          />
-        </Stack>
-      </LanguageProvider>
+      <AuthProvider>
+        <AppNavigator />
+      </AuthProvider>
     </SafeAreaProvider>
   );
 }

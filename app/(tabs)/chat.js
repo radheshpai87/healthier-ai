@@ -17,8 +17,10 @@ import * as SecureStore from 'expo-secure-store';
 import { useLanguage } from '../../src/context/LanguageContext';
 import { translations } from '../../src/constants/translations';
 import { getHealthAdvice } from '../../src/api/gemini';
+import { scopedKey } from '../../src/services/authService';
 
 const CHAT_STORAGE_KEY = 'aurahealth_chat_history';
+const chatKey = () => scopedKey(CHAT_STORAGE_KEY);
 
 export default function ChatScreen() {
   const { language } = useLanguage();
@@ -33,7 +35,7 @@ export default function ChatScreen() {
   useEffect(() => {
     (async () => {
       try {
-        const stored = await SecureStore.getItemAsync(CHAT_STORAGE_KEY);
+        const stored = await SecureStore.getItemAsync(chatKey());
         if (stored) {
           const parsed = JSON.parse(stored);
           if (Array.isArray(parsed) && parsed.length > 0) {
@@ -56,7 +58,7 @@ export default function ChatScreen() {
     if (!hasLoaded.current || messages.length === 0) return;
     // Keep only the last 50 messages to stay within SecureStore limits
     const toSave = messages.slice(-50);
-    SecureStore.setItemAsync(CHAT_STORAGE_KEY, JSON.stringify(toSave)).catch(() => {});
+    SecureStore.setItemAsync(chatKey(), JSON.stringify(toSave)).catch(() => {});
   }, [messages]);
 
   const sendMessage = async () => {

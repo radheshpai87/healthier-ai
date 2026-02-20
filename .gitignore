@@ -1,17 +1,60 @@
+# ── Dependencies ──────────────────────────────
 node_modules/
+.pnp
+.pnp.js
+
+# ── Expo ──────────────────────────────────────
 .expo/
+.expo-shared/
 dist/
-npm-debug.*
+web-build/
+expo-env.d.ts
+
+# ── Native build outputs ───────────────────────
+android/
+ios/
+*.orig.*
+
+# ── Credentials & secrets ─────────────────────
 *.jks
 *.p8
 *.p12
 *.key
 *.mobileprovision
-*.orig.*
-web-build/
+*.pem
+.env
+.env.*
+!.env.example
 
-# macOS
-.DS_Store
-
-# Temporary files
+# ── Logs ──────────────────────────────────────
+npm-debug.*
+yarn-debug.*
+yarn-error.*
 *.log
+logs/
+
+# ── Build / cache ──────────────────────────────
+.cache/
+build/
+out/
+.babel_transform_cache
+node_modules/.cache/
+
+# ── OS noise ──────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# ── Editor ────────────────────────────────────
+.idea/
+*.swp
+*.swo
+*~
+
+# ── TypeScript ────────────────────────────────
+*.tsbuildinfo

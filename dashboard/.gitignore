@@ -1,19 +1,23 @@
 # ── Dependencies ──────────────────────────────
 node_modules/
 
+# ── Create React App build output ─────────────
+build/
+
 # ── Environment / secrets ─────────────────────
 .env
 .env.*
 !.env.example
 
-# ── Build / output ────────────────────────────
-dist/
-build/
-
 # ── Logs ──────────────────────────────────────
 *.log
-logs/
 npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# ── Cache ─────────────────────────────────────
+node_modules/.cache/
+.cache/
 
 # ── OS noise ──────────────────────────────────
 .DS_Store

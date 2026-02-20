@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Trash2, Shield, Info, Phone, UserCog, MapPin, User } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useLanguage } from '../../src/context/LanguageContext';
+import { useAuth } from '../../src/context/AuthContext';
 import { translations } from '../../src/constants/translations';
 import LanguageSwitch from '../../src/components/LanguageSwitch';
 import { clearAllData } from '../../src/utils/storage';
@@ -11,9 +12,11 @@ import { clearAllAppData, saveEmergencyContacts, getEmergencyContacts, getRole, 
 import { getSavedLocation, detectLocation, saveLocation, clearSavedLocation } from '../../src/services/locationService';
 import { clearHealthData, getUserProfile } from '../../src/services/HealthDataLogger';
 import * as SecureStore from 'expo-secure-store';
+import { scopedKey } from '../../src/services/authService';
 
 export default function SettingsScreen() {
   const { language } = useLanguage();
+  const { user, logout } = useAuth();
   const t = translations[language];
   const router = useRouter();
 
@@ -58,7 +61,7 @@ export default function SettingsScreen() {
             await clearAllData();
             await clearAllAppData();
             await clearHealthData();
-            await SecureStore.deleteItemAsync('aurahealth_chat_history').catch(() => {});
+            await SecureStore.deleteItemAsync(scopedKey('aurahealth_chat_history')).catch(() => {});
             await clearSavedLocation();
             Alert.alert(t.success, t.dataCleared);
             router.replace('/role-select');
@@ -81,6 +84,28 @@ export default function SettingsScreen() {
     );
   };
 
+  const handleSwitchUser = async () => {
+    await logout();
+    router.replace('/login');
+  };
+
+  const handleLogout = () => {
+    Alert.alert(
+      language === 'hi' ? 'लॉग आउट करें?' : 'Log Out?',
+      language === 'hi'
+        ? 'आप लॉग आउट हो जाएंगे। आपका डेटा सुरक्षित रहेगा।'
+        : 'You will be logged out. Your data will be saved.',
+      [
+        { text: language === 'hi' ? 'रद्द करें' : 'Cancel', style: 'cancel' },
+        {
+          text: language === 'hi' ? 'लॉग आउट' : 'Log Out',
+          style: 'destructive',
+          onPress: handleSwitchUser,
+        },
+      ]
+    );
+  };
+
   const handleChangeRole = () => {
     Alert.alert(
       language === 'hi' ? 'भूमिका बदलें?' : 'Change Role?',
@@ -90,7 +115,7 @@ export default function SettingsScreen() {
       [
         { text: t.cancel, style: 'cancel' },
         {
-          text: t.confirm,
+          text: language === 'hi' ? 'बदलें' : 'Change',
           onPress: async () => {
             await saveRole('');
             await clearSavedLocation();
@@ -258,6 +283,30 @@ export default function SettingsScreen() {
               {language === 'hi' ? 'भूमिका बदलें (महिला / आशा)' : 'Change Role (Woman / ASHA)'}
             </Text>
           </TouchableOpacity>
+
+          <View style={{ height: 10 }} />
+
+          {/* Switch / Logout */}
+          <TouchableOpacity style={styles.roleButton} onPress={() => router.replace('/login')}>
+            <User size={20} color="#7B1FA2" />
+            <Text style={[styles.roleButtonText, { color: '#7B1FA2' }]}>
+              {language === 'hi' ? '👤 उपयोगकर्ता बदलें' : '👤 Switch User'}
+            </Text>
+          </TouchableOpacity>
+
+          <View style={{ height: 8 }} />
+
+          <TouchableOpacity style={[styles.roleButton, { borderColor: '#FFCDD2' }]} onPress={handleLogout}>
+            <Text style={[styles.roleButtonText, { color: '#E53935' }]}>
+              {language === 'hi' ? '🚪 लॉग आउट' : '🚪 Log Out'}
+            </Text>
+          </TouchableOpacity>
+
+          {user?.name ? (
+            <Text style={{ fontSize: 12, color: '#AAA', textAlign: 'center', marginTop: 6 }}>
+              {language === 'hi' ? `लॉग इन: ${user.name}` : `Logged in as ${user.name}`}
+            </Text>
+          ) : null}
         </View>
 
         {/* Privacy Section */}

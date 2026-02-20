@@ -8,13 +8,17 @@
 import * as SecureStore from 'expo-secure-store';
 import NetInfo from '@react-native-community/netinfo';
 import { SYNC_CONFIG } from '../utils/constants';
+import { scopedKey } from './authService';
 
 const KEYS = {
-  SYNC_QUEUE: 'aurahealth_sync_queue',
-  LAST_SYNC: 'aurahealth_last_sync',
+  SYNC_QUEUE:  'aurahealth_sync_queue',
+  LAST_SYNC:   'aurahealth_last_sync',
   HEALTH_LOGS: 'aurahealth_health_logs',
-  DEVICE_ID: 'aurahealth_device_id',
+  DEVICE_ID:   'aurahealth_device_id', // device-level, not user-scoped
 };
+
+/** Scope a per-user key. DEVICE_ID is excluded intentionally. */
+const sk = (key) => key === KEYS.DEVICE_ID ? key : scopedKey(key);
 
 // Backend API URL — read dynamically from app.json extra.backendUrl
 // (set by start-all.sh / start-mvp-final.sh to your machine's LAN IP at launch)
@@ -57,7 +61,7 @@ export async function isOnline() {
  */
 async function getSyncQueue() {
   try {
-    const queue = await SecureStore.getItemAsync(KEYS.SYNC_QUEUE);
+    const queue = await SecureStore.getItemAsync(sk(KEYS.SYNC_QUEUE));
     return queue ? JSON.parse(queue) : [];
   } catch (error) {
     console.error('Error getting sync queue:', error);
@@ -71,7 +75,7 @@ async function getSyncQueue() {
  */
 async function saveSyncQueue(queue) {
   try {
-    await SecureStore.setItemAsync(KEYS.SYNC_QUEUE, JSON.stringify(queue));
+    await SecureStore.setItemAsync(sk(KEYS.SYNC_QUEUE), JSON.stringify(queue));
   } catch (error) {
     console.error('Error saving sync queue:', error);
   }
@@ -189,7 +193,7 @@ export async function syncPendingData() {
   await saveSyncQueue(failedItems);
   
   // Update last sync time
-  await SecureStore.setItemAsync(KEYS.LAST_SYNC, new Date().toISOString());
+  await SecureStore.setItemAsync(sk(KEYS.LAST_SYNC), new Date().toISOString());
   
   return {
     success: failedItems.length === 0,
@@ -232,7 +236,7 @@ async function pushToBackend(item) {
  */
 export async function getSyncStatus() {
   const queue = await getSyncQueue();
-  const lastSync = await SecureStore.getItemAsync(KEYS.LAST_SYNC);
+  const lastSync = await SecureStore.getItemAsync(sk(KEYS.LAST_SYNC));
   const online = await isOnline();
   
   return {
@@ -268,7 +272,7 @@ export async function saveHealthLog(logData) {
       new Date(log.timestamp) > oneYearAgo
     );
     
-    await SecureStore.setItemAsync(KEYS.HEALTH_LOGS, JSON.stringify(filteredLogs));
+    await SecureStore.setItemAsync(sk(KEYS.HEALTH_LOGS), JSON.stringify(filteredLogs));
     
     // Queue for sync
     await queueForSync('health_log', newLog);
@@ -286,7 +290,7 @@ export async function saveHealthLog(logData) {
  */
 export async function getHealthLogs() {
   try {
-    const logs = await SecureStore.getItemAsync(KEYS.HEALTH_LOGS);
+    const logs = await SecureStore.getItemAsync(sk(KEYS.HEALTH_LOGS));
     return logs ? JSON.parse(logs) : [];
   } catch (error) {
     console.error('Error getting health logs:', error);
@@ -313,7 +317,7 @@ export async function getHealthLogsByDateRange(startDate, endDate) {
  * Clear all synced data (keeps local data)
  */
 export async function clearSyncQueue() {
-  await SecureStore.deleteItemAsync(KEYS.SYNC_QUEUE);
+  await SecureStore.deleteItemAsync(sk(KEYS.SYNC_QUEUE));
 }
 
 /**

@@ -16,12 +16,16 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
+  Modal,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { LanguageContext } from '../context/LanguageContext';
 import { saveRole } from '../services/storageService';
 import { detectLocation, saveLocation } from '../services/locationService';
+import { registerUser } from '../services/authService';
+import { useAuth } from '../context/AuthContext';
 import { ROLES } from '../utils/constants';
 
 // ── Translations ───────────────────────────────
@@ -67,12 +71,21 @@ const t = {
 export default function RoleSelectionScreen() {
   const router = useRouter();
   const { language } = useContext(LanguageContext);
+  const { refreshUser } = useAuth();
   const lang = language === 'hi' ? 'hi' : 'en';
   const texts = t[lang];
 
   const [selectedRole, setSelectedRole] = useState(null);
   const [locationData, setLocationData] = useState(null);
   const [isDetecting, setIsDetecting] = useState(false);
+
+  // ASHA PIN setup modal
+  const [showAshaPinModal, setShowAshaPinModal] = useState(false);
+  const [ashaName, setAshaName] = useState('');
+  const [ashaPin1, setAshaPin1] = useState('');
+  const [ashaPin2, setAshaPin2] = useState('');
+  const [ashaPinStep, setAshaPinStep] = useState(1);
+  const [ashaPinError, setAshaPinError] = useState('');
 
   // ── Detect Location (Swiggy-style) ───────────
   const handleDetectLocation = async () => {
@@ -114,10 +127,55 @@ export default function RoleSelectionScreen() {
     await saveRole(selectedRole);
 
     if (selectedRole === ROLES.ASHA) {
-      router.replace('/asha');
+      // Show PIN setup modal for ASHA workers
+      setShowAshaPinModal(true);
     } else {
       // Woman role → go to profile setup first
       router.replace('/profile-setup');
+    }
+  };
+
+  const handleAshaPinDigit = (digit) => {
+    if (ashaPinStep === 1) {
+      const next = ashaPin1 + digit;
+      if (next.length <= 4) setAshaPin1(next);
+      if (next.length === 4) setAshaPinStep(2);
+    } else {
+      const next = ashaPin2 + digit;
+      if (next.length <= 4) setAshaPin2(next);
+      if (next.length === 4) confirmAshaPin(next);
+    }
+  };
+
+  const handleAshaPinDelete = () => {
+    if (ashaPinStep === 1) setAshaPin1((p) => p.slice(0, -1));
+    else setAshaPin2((p) => p.slice(0, -1));
+  };
+
+  const confirmAshaPin = async (confirmedPin) => {
+    if (ashaPin1 !== confirmedPin) {
+      setAshaPinError(lang === 'hi' ? 'PIN मेल नहीं खाता' : 'PINs do not match');
+      setAshaPin1('');
+      setAshaPin2('');
+      setAshaPinStep(1);
+      return;
+    }
+    try {
+      await registerUser({
+        name: ashaName.trim() || (lang === 'hi' ? 'आशा कार्यकर्ता' : 'ASHA Worker'),
+        role: ROLES.ASHA,
+        pin: confirmedPin,
+      });
+      // Re-save role to the now-active scoped key
+      await saveRole(ROLES.ASHA);
+      // Hydrate AuthContext immediately
+      await refreshUser();
+      setShowAshaPinModal(false);
+      router.replace('/asha');
+    } catch (err) {
+      console.error('[RoleSelect] ASHA registerUser failed:', err);
+      setShowAshaPinModal(false);
+      router.replace('/asha');
     }
   };
 
@@ -207,6 +265,59 @@ export default function RoleSelectionScreen() {
         {/* Privacy Note */}
         <Text style={styles.privacyNote}>{texts.privacyNote}</Text>
       </ScrollView>
+
+      {/* ── ASHA PIN Setup Modal ──────── */}
+      <Modal
+        visible={showAshaPinModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => {}}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>
+              {lang === 'hi' ? 'आशा कार्यकर्ता खाता' : 'ASHA Worker Account'}
+            </Text>
+
+            <TextInput
+              style={styles.nameInput}
+              value={ashaName}
+              onChangeText={setAshaName}
+              placeholder={lang === 'hi' ? 'आपका नाम (वैकल्पिक)' : 'Your name (optional)'}
+              placeholderTextColor="#BBB"
+            />
+
+            <Text style={styles.pinLabel}>
+              {ashaPinStep === 1
+                ? (lang === 'hi' ? 'PIN बनाएं (4 अंक)' : 'Create PIN (4 digits)')
+                : (lang === 'hi' ? 'PIN दोहराएं' : 'Confirm PIN')}
+            </Text>
+
+            <View style={styles.dotsRow}>
+              {[0,1,2,3].map(i => {
+                const filled = ashaPinStep === 1 ? i < ashaPin1.length : i < ashaPin2.length;
+                return <View key={i} style={[styles.dot, filled && styles.dotFilled]} />;
+              })}
+            </View>
+            {ashaPinError ? <Text style={{ color: '#E53935', textAlign: 'center', marginBottom: 8, fontSize: 13 }}>{ashaPinError}</Text> : null}
+
+            {[['1','2','3'],['4','5','6'],['7','8','9'],['','0','⌫']].map((row, ri) => (
+              <View key={ri} style={styles.keyRow}>
+                {row.map((k, ci) => (
+                  <TouchableOpacity
+                    key={ci}
+                    style={[styles.pinKey, k === '' && styles.pinKeyInvisible]}
+                    onPress={() => k === '⌫' ? handleAshaPinDelete() : k !== '' ? handleAshaPinDigit(k) : null}
+                    disabled={k === ''}
+                  >
+                    <Text style={styles.pinKeyText}>{k}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            ))}
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -352,5 +463,78 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
     paddingHorizontal: 12,
+  },
+  // ── ASHA PIN Modal ─────────────────────────
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  modalContent: {
+    backgroundColor: '#FFF',
+    borderRadius: 20,
+    padding: 24,
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#C2185B',
+    marginBottom: 16,
+  },
+  nameInput: {
+    width: '100%',
+    backgroundColor: '#FFF5F5',
+    borderRadius: 10,
+    padding: 12,
+    fontSize: 15,
+    borderWidth: 1,
+    borderColor: '#FFE4E9',
+    marginBottom: 16,
+  },
+  pinLabel: {
+    fontSize: 15,
+    color: '#555',
+    marginBottom: 12,
+  },
+  dotsRow: {
+    flexDirection: 'row',
+    gap: 14,
+    marginBottom: 12,
+  },
+  dot: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: '#C2185B',
+  },
+  dotFilled: {
+    backgroundColor: '#C2185B',
+  },
+  keyRow: {
+    flexDirection: 'row',
+    gap: 20,
+    marginBottom: 12,
+  },
+  pinKey: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#FFF5F5',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#FFB6C1',
+  },
+  pinKeyInvisible: {
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+  },
+  pinKeyText: {
+    fontSize: 22,
+    fontWeight: '500',
+    color: '#333',
   },
 });

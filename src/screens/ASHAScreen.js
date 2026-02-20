@@ -29,6 +29,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { LanguageContext } from '../context/LanguageContext';
+import { useAuth } from '../context/AuthContext';
 import {
   getHealthRecords,
   getASHAVisits,
@@ -64,6 +65,9 @@ const t = {
     never: 'Never',
     score: 'Score',
     switchRole: 'Change Role',
+    logout: 'Log Out',
+    logoutTitle: 'Log Out?',
+    logoutMessage: 'You will be returned to the login screen.',
   },
   hi: {
     title: 'आशा कार्यकर्ता डैशबोर्ड',
@@ -88,6 +92,9 @@ const t = {
     never: 'कभी नहीं',
     score: 'स्कोर',
     switchRole: 'भूमिका बदलें',
+    logout: 'लॉग आउट',
+    logoutTitle: 'लॉग आउट करें?',
+    logoutMessage: 'आपको लॉगिन स्क्रीन पर वापस ले जाया जाएगा।',
   },
 };
 
@@ -95,6 +102,7 @@ export default function ASHAScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { language } = useContext(LanguageContext);
+  const { user, logout } = useAuth();
   const lang = language === 'hi' ? 'hi' : 'en';
   const texts = t[lang];
 
@@ -153,6 +161,25 @@ export default function ASHAScreen() {
     } finally {
       setIsSyncing(false);
     }
+  };
+
+  // ── Logout ──────────────────────────────────
+  const handleLogout = () => {
+    Alert.alert(
+      texts.logoutTitle,
+      texts.logoutMessage,
+      [
+        { text: lang === 'hi' ? 'रद्द करें' : 'Cancel', style: 'cancel' },
+        {
+          text: texts.logout,
+          style: 'destructive',
+          onPress: async () => {
+            await logout();
+            router.replace('/login');
+          },
+        },
+      ]
+    );
   };
 
   // ── End Visit ────────────────────────────────
@@ -300,6 +327,12 @@ export default function ASHAScreen() {
         )}
 
         {/* Switch Mode */}
+        {user?.name ? (
+          <Text style={styles.loggedInLabel}>
+            {lang === 'hi' ? `लॉग इन: ${user.name}` : `Logged in as ${user.name}`}
+          </Text>
+        ) : null}
+
         <TouchableOpacity
           style={styles.switchBtn}
           onPress={() => {
@@ -324,6 +357,14 @@ export default function ASHAScreen() {
           activeOpacity={0.7}
         >
           <Text style={styles.switchBtnText}>{texts.switchRole}</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.logoutBtn}
+          onPress={handleLogout}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.logoutBtnText}>{texts.logout}</Text>
         </TouchableOpacity>
       </ScrollView>
     </View>
@@ -501,5 +542,24 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: '#FFB6C1',
+  },
+  logoutBtn: {
+    marginTop: 10,
+    borderWidth: 2,
+    borderColor: '#FFCDD2',
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  logoutBtnText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#E53935',
+  },
+  loggedInLabel: {
+    fontSize: 12,
+    color: '#AAA',
+    textAlign: 'center',
+    marginBottom: 8,
   },
 });

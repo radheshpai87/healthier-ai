@@ -20,6 +20,10 @@
 import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { STORAGE_KEYS } from '../utils/constants';
+import { scopedKey } from './authService';
+
+// Keys that are scoped per user
+const sk = (key) => scopedKey(key);
 
 // ── Helpers ────────────────────────────────────
 
@@ -43,7 +47,7 @@ function generateId() {
  */
 export async function saveRole(role) {
   try {
-    await SecureStore.setItemAsync(STORAGE_KEYS.ROLE, role);
+    await SecureStore.setItemAsync(sk(STORAGE_KEYS.ROLE), role);
   } catch (error) {
     console.error('[StorageService] Failed to save role:', error);
   }
@@ -55,7 +59,7 @@ export async function saveRole(role) {
  */
 export async function getRole() {
   try {
-    return await SecureStore.getItemAsync(STORAGE_KEYS.ROLE);
+    return await SecureStore.getItemAsync(sk(STORAGE_KEYS.ROLE));
   } catch (error) {
     console.error('[StorageService] Failed to get role:', error);
     return null;
@@ -68,7 +72,7 @@ export async function getRole() {
  */
 export async function saveVillageCode(code) {
   try {
-    await SecureStore.setItemAsync(STORAGE_KEYS.VILLAGE_CODE, code);
+    await SecureStore.setItemAsync(sk(STORAGE_KEYS.VILLAGE_CODE), code);
   } catch (error) {
     console.error('[StorageService] Failed to save village code:', error);
   }
@@ -80,7 +84,7 @@ export async function saveVillageCode(code) {
  */
 export async function getVillageCode() {
   try {
-    return await SecureStore.getItemAsync(STORAGE_KEYS.VILLAGE_CODE);
+    return await SecureStore.getItemAsync(sk(STORAGE_KEYS.VILLAGE_CODE));
   } catch (error) {
     console.error('[StorageService] Failed to get village code:', error);
     return null;
@@ -94,7 +98,7 @@ export async function getVillageCode() {
 export async function saveEmergencyContacts(contacts) {
   try {
     await SecureStore.setItemAsync(
-      STORAGE_KEYS.EMERGENCY_CONTACTS,
+      sk(STORAGE_KEYS.EMERGENCY_CONTACTS),
       JSON.stringify(contacts)
     );
   } catch (error) {
@@ -108,7 +112,7 @@ export async function saveEmergencyContacts(contacts) {
  */
 export async function getEmergencyContacts() {
   try {
-    const data = await SecureStore.getItemAsync(STORAGE_KEYS.EMERGENCY_CONTACTS);
+    const data = await SecureStore.getItemAsync(sk(STORAGE_KEYS.EMERGENCY_CONTACTS));
     return data ? JSON.parse(data) : null;
   } catch (error) {
     console.error('[StorageService] Failed to get contacts:', error);
@@ -148,7 +152,7 @@ export async function saveHealthRecord(record) {
     existing.push(newRecord);
 
     await AsyncStorage.setItem(
-      STORAGE_KEYS.HEALTH_RECORDS,
+      sk(STORAGE_KEYS.HEALTH_RECORDS),
       JSON.stringify(existing)
     );
 
@@ -168,7 +172,7 @@ export async function saveHealthRecord(record) {
  */
 export async function getHealthRecords() {
   try {
-    const data = await AsyncStorage.getItem(STORAGE_KEYS.HEALTH_RECORDS);
+    const data = await AsyncStorage.getItem(sk(STORAGE_KEYS.HEALTH_RECORDS));
     return data ? JSON.parse(data) : [];
   } catch (error) {
     console.error('[StorageService] Failed to get health records:', error);
@@ -194,7 +198,7 @@ export async function addToSyncQueue(record) {
       retries: 0,
     });
 
-    await AsyncStorage.setItem(STORAGE_KEYS.SYNC_QUEUE, JSON.stringify(queue));
+    await AsyncStorage.setItem(sk(STORAGE_KEYS.SYNC_QUEUE), JSON.stringify(queue));
   } catch (error) {
     console.error('[StorageService] Failed to add to sync queue:', error);
   }
@@ -206,7 +210,7 @@ export async function addToSyncQueue(record) {
  */
 export async function getSyncQueue() {
   try {
-    const data = await AsyncStorage.getItem(STORAGE_KEYS.SYNC_QUEUE);
+    const data = await AsyncStorage.getItem(sk(STORAGE_KEYS.SYNC_QUEUE));
     return data ? JSON.parse(data) : [];
   } catch (error) {
     console.error('[StorageService] Failed to get sync queue:', error);
@@ -220,7 +224,7 @@ export async function getSyncQueue() {
  */
 export async function updateSyncQueue(queue) {
   try {
-    await AsyncStorage.setItem(STORAGE_KEYS.SYNC_QUEUE, JSON.stringify(queue));
+    await AsyncStorage.setItem(sk(STORAGE_KEYS.SYNC_QUEUE), JSON.stringify(queue));
   } catch (error) {
     console.error('[StorageService] Failed to update sync queue:', error);
   }
@@ -237,7 +241,7 @@ export async function markRecordSynced(recordId) {
       r.id === recordId ? { ...r, synced: true } : r
     );
     await AsyncStorage.setItem(
-      STORAGE_KEYS.HEALTH_RECORDS,
+      sk(STORAGE_KEYS.HEALTH_RECORDS),
       JSON.stringify(updated)
     );
   } catch (error) {
@@ -251,7 +255,7 @@ export async function markRecordSynced(recordId) {
 export async function saveLastSync() {
   try {
     await AsyncStorage.setItem(
-      STORAGE_KEYS.LAST_SYNC,
+      sk(STORAGE_KEYS.LAST_SYNC),
       new Date().toISOString()
     );
   } catch (error) {
@@ -265,7 +269,7 @@ export async function saveLastSync() {
  */
 export async function getLastSync() {
   try {
-    return await AsyncStorage.getItem(STORAGE_KEYS.LAST_SYNC);
+    return await AsyncStorage.getItem(sk(STORAGE_KEYS.LAST_SYNC));
   } catch (error) {
     console.error('[StorageService] Failed to get last sync:', error);
     return null;
@@ -289,7 +293,7 @@ export async function saveASHAVisit(visit) {
       notes: visit.notes || '',
     });
 
-    await AsyncStorage.setItem(STORAGE_KEYS.ASHA_VISITS, JSON.stringify(visits));
+    await AsyncStorage.setItem(sk(STORAGE_KEYS.ASHA_VISITS), JSON.stringify(visits));
   } catch (error) {
     console.error('[StorageService] Failed to save ASHA visit:', error);
   }
@@ -301,7 +305,7 @@ export async function saveASHAVisit(visit) {
  */
 export async function getASHAVisits() {
   try {
-    const data = await AsyncStorage.getItem(STORAGE_KEYS.ASHA_VISITS);
+    const data = await AsyncStorage.getItem(sk(STORAGE_KEYS.ASHA_VISITS));
     return data ? JSON.parse(data) : [];
   } catch (error) {
     console.error('[StorageService] Failed to get ASHA visits:', error);
@@ -314,14 +318,14 @@ export async function getASHAVisits() {
  */
 export async function clearAllAppData() {
   try {
-    await SecureStore.deleteItemAsync(STORAGE_KEYS.ROLE);
-    await SecureStore.deleteItemAsync(STORAGE_KEYS.VILLAGE_CODE);
-    await SecureStore.deleteItemAsync(STORAGE_KEYS.EMERGENCY_CONTACTS);
-    await SecureStore.deleteItemAsync('aura_user_location');
-    await AsyncStorage.removeItem(STORAGE_KEYS.HEALTH_RECORDS);
-    await AsyncStorage.removeItem(STORAGE_KEYS.SYNC_QUEUE);
-    await AsyncStorage.removeItem(STORAGE_KEYS.LAST_SYNC);
-    await AsyncStorage.removeItem(STORAGE_KEYS.ASHA_VISITS);
+    await SecureStore.deleteItemAsync(sk(STORAGE_KEYS.ROLE));
+    await SecureStore.deleteItemAsync(sk(STORAGE_KEYS.VILLAGE_CODE));
+    await SecureStore.deleteItemAsync(sk(STORAGE_KEYS.EMERGENCY_CONTACTS));
+    await SecureStore.deleteItemAsync(sk('aura_user_location'));
+    await AsyncStorage.removeItem(sk(STORAGE_KEYS.HEALTH_RECORDS));
+    await AsyncStorage.removeItem(sk(STORAGE_KEYS.SYNC_QUEUE));
+    await AsyncStorage.removeItem(sk(STORAGE_KEYS.LAST_SYNC));
+    await AsyncStorage.removeItem(sk(STORAGE_KEYS.ASHA_VISITS));
   } catch (error) {
     console.error('[StorageService] Failed to clear data:', error);
   }
