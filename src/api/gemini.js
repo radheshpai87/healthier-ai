@@ -9,9 +9,25 @@ const API_KEY =
 
 const genAI = new GoogleGenerativeAI(API_KEY);
 
-// Models in priority order — falls back if quota is hit or model unavailable
-// Using current Gemini 2.5 family (2.0 is deprecated, 1.5 is removed)
-const MODELS = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.5-pro'];
+// Models in priority order — fast/cheap first, more capable as fallback
+// Using confirmed available models only
+const MODELS = ['gemini-2.5-flash-lite', 'gemini-2.5-pro', 'gemini-3-flash'];
+
+/**
+ * Strip common Markdown syntax so plain <Text> renders cleanly.
+ */
+function stripMarkdown(text) {
+  return text
+    .replace(/#{1,6}\s*/g, '')        // headings
+    .replace(/\*\*(.+?)\*\*/g, '$1')  // bold
+    .replace(/\*(.+?)\*/g, '$1')      // italic
+    .replace(/__(.+?)__/g, '$1')      // bold alt
+    .replace(/_(.+?)_/g, '$1')        // italic alt
+    .replace(/`{1,3}(.+?)`{1,3}/gs, '$1') // code
+    .replace(/^\s*[-*]\s/gm, '• ')   // list markers → bullet
+    .replace(/\n{3,}/g, '\n\n')      // collapse excess newlines
+    .trim();
+}
 
 /**
  * Call Gemini with automatic model fallback and retry.
@@ -21,22 +37,32 @@ const MODELS = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.5-pro'];
  * @param {number} maxRetries
  * @returns {Promise<string>}
  */
-async function callWithFallback(prompt, maxRetries = 2, maxTokens = 256) {
+async function callWithFallback(prompt, maxRetries = 2, maxTokens = 256, history = []) {
   let lastError = null;
 
   for (const modelName of MODELS) {
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
-        const model = genAI.getGenerativeModel({
-          model: modelName,
-          generationConfig: {
-            maxOutputTokens: maxTokens,
-            temperature: 0.7,
+        const model = genAI.getGenerativeModel(
+          {
+            model: modelName,
+            generationConfig: {
+              maxOutputTokens: maxTokens,
+              temperature: 0.7,
+            },
           },
-        });
-        const result = await model.generateContent(prompt);
-        const response = await result.response;
-        return response.text();
+          { apiVersion: 'v1' }
+        );
+        let rawText;
+        if (history.length > 0) {
+          const chat = model.startChat({ history });
+          const result = await chat.sendMessage(prompt);
+          rawText = result.response.text();
+        } else {
+          const result = await model.generateContent(prompt);
+          rawText = result.response.text();
+        }
+        return stripMarkdown(rawText);
       } catch (error) {
         lastError = error;
         const status = error?.status || error?.response?.status;
@@ -76,25 +102,41 @@ async function callWithFallback(prompt, maxRetries = 2, maxTokens = 256) {
  * @param {string} language - 'en' for English, 'hi' for Hindi
  * @returns {Promise<string>} - AI-generated health tip with disclaimer
  */
-export async function getHealthAdvice(symptom, language = 'en') {
+export async function getHealthAdvice(symptom, language = 'en', riskContext = null, conversationHistory = []) {
   const languageInstruction = language === 'hi' 
     ? 'Respond in Hindi (हिंदी) language only.'
     : 'Respond in English.';
 
-  const prompt = `You are AuraHealth, a women's health companion. User concern: "${symptom}"
+  const contextBlock = riskContext
+    ? `\nPatient context: Recent ML assessment shows ${riskContext.level} risk` +
+      (riskContext.mlConfidence ? ` (${Math.round(riskContext.mlConfidence * 100)}% confidence)` : '') +
+      (riskContext.healthGrade ? `, health grade ${riskContext.healthGrade}` : '') +
+      '. Tailor your advice with this in mind.\n'
+    : '';
 
+  // Build Gemini-format history from prior messages (skip system/welcome)
+  const geminiHistory = conversationHistory.flatMap((msg) => [
+    { role: 'user', parts: [{ text: msg.userText }] },
+    { role: 'model', parts: [{ text: msg.botText }] },
+  ]);
+
+  const systemPrompt = `You are AuraHealth, a warm and knowledgeable women's health companion for rural Indian users.${contextBlock}
 ${languageInstruction}
 
-Rules — STRICTLY follow:
-- Maximum 60 words total. Do NOT exceed this.
-- Use short sentences and bullet points.
-- Structure: 1 line empathy → 2-3 bullet tips → 1 line "see a doctor if…" → 1 line disclaimer.
-- No greetings, no headers, no numbering like "1." "2." — just use bullet •.
-- Disclaimer (last line): "⚠️ General wellness info, not medical advice."
-- Be warm but brief. Written for rural users with limited literacy.`;
+CRITICAL RULES:
+- NEVER say "I'm sorry", "I cannot", "I can't", "I apologize", or refuse. Always respond helpfully.
+- Match your response length naturally to what is asked — a greeting gets a short warm reply, a health question gets a proper thorough answer.
+- For health topics: cover causes, practical home care steps, safe OTC options where relevant, and when to see a doctor. Use • bullet points where helpful.
+- Plain everyday language. No medical jargon. No Markdown formatting (no **, no ###).
+- Do not start with a greeting. No numbering.
+- End health responses with: "⚠️ General wellness info, not medical advice."`;
+
+  // First turn carries the system prompt; subsequent turns are plain user messages
+  const isFirstTurn = geminiHistory.length === 0;
+  const prompt = isFirstTurn ? `${systemPrompt}\n\nUser: ${symptom}` : symptom;
 
   try {
-    return await callWithFallback(prompt, 2, 200);
+    return await callWithFallback(prompt, 2, 400, geminiHistory);
   } catch (error) {
     console.error('Gemini API Error:', error);
     
@@ -137,5 +179,92 @@ Rules — STRICTLY follow:
     return language === 'hi' 
       ? 'मूड विश्लेषण अभी उपलब्ध नहीं है। कृपया बाद में प्रयास करें।'
       : 'Mood analysis is not available right now. Please try again later.';
+  }
+}
+
+const SYMPTOM_LABELS = {
+  heavyBleeding: 'heavy bleeding',
+  fatigue: 'fatigue or tiredness',
+  dizziness: 'dizziness',
+  lowHb: 'low hemoglobin (anaemia)',
+  irregularCycles: 'irregular menstrual cycles',
+  pain: 'pelvic or abdominal pain',
+  pregnancyIssue: 'pregnancy-related concerns',
+  fainted: 'fainting episode',
+  severePain: 'severe acute pain',
+  vomiting: 'persistent vomiting',
+};
+
+/**
+ * Generate personalised health advice grounded in the ML risk assessment output.
+ * @param {Object} riskData  - { level, score, mlConfidence, healthGrade, symptoms, emergency, details }
+ * @param {string} language  - 'en' | 'hi'
+ * @returns {Promise<string>}
+ */
+export async function generateSymptomAdvice(riskData, language = 'en') {
+  const { level, score, mlConfidence, healthGrade, symptoms = {}, emergency = {}, details = {} } = riskData;
+
+  const allFlags = { ...symptoms, ...emergency };
+  const activeList = Object.entries(allFlags)
+    .filter(([, v]) => v)
+    .map(([k]) => SYMPTOM_LABELS[k] || k);
+
+  const symptomsText = activeList.length > 0
+    ? activeList.join(', ')
+    : 'no specific symptoms flagged';
+
+  const confidenceStr = mlConfidence ? `, ${Math.round(mlConfidence * 100)}% confidence` : '';
+  const gradeStr = healthGrade ? `, health grade ${healthGrade}` : '';
+  const languageInstruction = language === 'hi'
+    ? 'Respond in Hindi (हिंदी) only.'
+    : 'Respond in English.';
+
+  // Build a detail block so the LLM has quantified severity
+  const detailLines = [];
+  if (details.painIntensity) {
+    const intensity = details.painIntensity;
+    const tag = intensity >= 8 ? 'severe — immediate action needed'
+               : intensity >= 5 ? 'moderate — proactive management needed'
+               : 'mild';
+    detailLines.push(`- Pain intensity: ${intensity}/10 (${tag})`);
+  }
+  if (details.bleedingLevel) detailLines.push(`- Bleeding heaviness: ${details.bleedingLevel}`);
+  if (details.fatigueLevel)   detailLines.push(`- Fatigue severity: ${details.fatigueLevel}`);
+  if (details.symptomDuration) detailLines.push(`- Symptoms started: ${details.symptomDuration}`);
+  const detailsBlock = detailLines.length > 0
+    ? `\nPatient-reported severity:\n${detailLines.join('\n')}\n`
+    : '';
+
+  const prompt = `You are AuraHealth's clinical health advisor. An ML risk model just assessed this patient.
+
+Assessment: ${level} risk (score: ${score}${confidenceStr}${gradeStr})
+Active concerns: ${symptomsText}${detailsBlock}
+
+${languageInstruction}
+Structure your response EXACTLY as these sections (use bullet • for each point):
+
+1. Risk summary: What this ${level} risk level means in 1 sentence.
+
+2. Per-symptom guidance: For each active concern —
+   • Brief plain explanation
+   • "To reduce intensity:" 1-2 specific steps the patient can do at home right now
+
+3. OTC remedies: Safe over-the-counter options for each symptom (use generic names accessible in India — e.g. paracetamol, ibuprofen, ORS, iron tablets, antacids). State dose guidance briefly.
+
+4. Next steps: 2 actions (visit ASHA worker / health centre)${level === 'HIGH' ? '\n   • HIGH RISK: advise immediate doctor visit' : ''}
+
+Rules: Max 250 words. Bullet points only. No greetings. Simple language for rural users with low literacy.
+OTC suggestions must be safe and available without prescription in India.
+End with: "Note: General wellness information, not medical advice."`;
+
+  try {
+    return await callWithFallback(prompt, 2, 500);
+  } catch (error) {
+    console.error('[Gemini] generateSymptomAdvice failed:', error);
+    const fallback = {
+      en: `Your ${level.toLowerCase()} risk assessment has been recorded. Please monitor your symptoms and consult a healthcare provider if they persist or worsen.\n\nNote: General wellness information, not medical advice.`,
+      hi: `आपका ${level === 'HIGH' ? 'उच्च' : level === 'MODERATE' ? 'मध्यम' : 'कम'} जोखिम मूल्यांकन दर्ज हो गया। लक्षण बने रहें तो डॉक्टर से मिलें।\n\nनोट: यह सामान्य स्वास्थ्य जानकारी है, चिकित्सा सलाह नहीं।`,
+    };
+    return fallback[language] || fallback.en;
   }
 }

@@ -326,7 +326,37 @@ export async function clearAllAppData() {
     await AsyncStorage.removeItem(sk(STORAGE_KEYS.SYNC_QUEUE));
     await AsyncStorage.removeItem(sk(STORAGE_KEYS.LAST_SYNC));
     await AsyncStorage.removeItem(sk(STORAGE_KEYS.ASHA_VISITS));
+    await AsyncStorage.removeItem(sk('aura_last_risk_result'));
   } catch (error) {
     console.error('[StorageService] Failed to clear data:', error);
+  }
+}
+
+/**
+ * Persist the latest risk assessment result so the chat screen
+ * can use it as context when calling the LLM.
+ */
+export async function saveLastRiskResult(riskData) {
+  try {
+    await AsyncStorage.setItem(
+      sk('aura_last_risk_result'),
+      JSON.stringify({ ...riskData, savedAt: new Date().toISOString() })
+    );
+  } catch (error) {
+    console.error('[StorageService] Failed to save last risk result:', error);
+  }
+}
+
+/**
+ * Retrieve the most recently saved risk result.
+ * @returns {Promise<Object|null>}
+ */
+export async function getLastRiskResult() {
+  try {
+    const data = await AsyncStorage.getItem(sk('aura_last_risk_result'));
+    return data ? JSON.parse(data) : null;
+  } catch (error) {
+    console.error('[StorageService] Failed to get last risk result:', error);
+    return null;
   }
 }

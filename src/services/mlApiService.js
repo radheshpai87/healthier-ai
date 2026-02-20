@@ -16,13 +16,28 @@ import { predictRisk as localPredict, quickRiskCheck as localQuickCheck, analyze
 
 // ── API Configuration ──────────────────────────
 const ML_API_BASE = 'https://healthier-ml-api.onrender.com';
-const REQUEST_TIMEOUT = 8000; // 8 seconds
+const REQUEST_TIMEOUT = 30000;  // 30s — allows for Render free-tier cold start (~20-40s)
+const QUICK_TIMEOUT   = 5000;   // 5s — for health checks / pre-warm only
 
 const api = axios.create({
   baseURL: ML_API_BASE,
   timeout: REQUEST_TIMEOUT,
   headers: { 'Content-Type': 'application/json' },
 });
+
+/**
+ * Silently wake up the Render service in the background.
+ * Call this on app launch — no-op if already warm or offline.
+ */
+export async function prewarmMLApi() {
+  try {
+    const netState = await NetInfo.fetch();
+    if (!netState.isConnected) return;
+    await api.get('/health', { timeout: QUICK_TIMEOUT });
+  } catch {
+    // Expected on first cold-start — ignore
+  }
+}
 
 // ── Health Check ───────────────────────────────
 

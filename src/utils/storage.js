@@ -1,4 +1,5 @@
 import * as SecureStore from 'expo-secure-store';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { scopedKey } from '../services/authService';
 
 const KEYS = {
@@ -19,7 +20,7 @@ const sk = (key) => scopedKey(key);
 export async function getData(key) {
   try {
     const fullKey = sk(`aurahealth_${key}`);
-    const data = await SecureStore.getItemAsync(fullKey);
+    const data = await AsyncStorage.getItem(fullKey);
     return data ? JSON.parse(data) : null;
   } catch (error) {
     console.error(`Error getting ${key}:`, error);
@@ -36,7 +37,7 @@ export async function getData(key) {
 export async function saveData(key, value) {
   try {
     const fullKey = sk(`aurahealth_${key}`);
-    await SecureStore.setItemAsync(fullKey, JSON.stringify(value));
+    await AsyncStorage.setItem(fullKey, JSON.stringify(value));
     return true;
   } catch (error) {
     console.error(`Error saving ${key}:`, error);
@@ -50,7 +51,7 @@ export async function saveData(key, value) {
  */
 export async function savePeriodData(dates) {
   try {
-    await SecureStore.setItemAsync(sk(KEYS.PERIOD_DATA), JSON.stringify(dates));
+    await AsyncStorage.setItem(sk(KEYS.PERIOD_DATA), JSON.stringify(dates));
     return true;
   } catch (error) {
     console.error('Error saving period data:', error);
@@ -64,7 +65,7 @@ export async function savePeriodData(dates) {
  */
 export async function getPeriodData() {
   try {
-    const data = await SecureStore.getItemAsync(sk(KEYS.PERIOD_DATA));
+    const data = await AsyncStorage.getItem(sk(KEYS.PERIOD_DATA));
     return data ? JSON.parse(data) : null;
   } catch (error) {
     console.error('Error getting period data:', error);
@@ -81,7 +82,7 @@ export async function saveMoodData(date, mood) {
   try {
     const existingData = await getMoodData() || {};
     existingData[date] = mood;
-    await SecureStore.setItemAsync(sk(KEYS.MOOD_DATA), JSON.stringify(existingData));
+    await AsyncStorage.setItem(sk(KEYS.MOOD_DATA), JSON.stringify(existingData));
     return true;
   } catch (error) {
     console.error('Error saving mood data:', error);
@@ -95,7 +96,7 @@ export async function saveMoodData(date, mood) {
  */
 export async function getMoodData() {
   try {
-    const data = await SecureStore.getItemAsync(sk(KEYS.MOOD_DATA));
+    const data = await AsyncStorage.getItem(sk(KEYS.MOOD_DATA));
     return data ? JSON.parse(data) : null;
   } catch (error) {
     console.error('Error getting mood data:', error);
@@ -140,7 +141,7 @@ export async function saveSymptoms(date, symptoms) {
   try {
     const existingData = await getSymptoms() || {};
     existingData[date] = symptoms;
-    await SecureStore.setItemAsync(sk(KEYS.SYMPTOMS), JSON.stringify(existingData));
+    await AsyncStorage.setItem(sk(KEYS.SYMPTOMS), JSON.stringify(existingData));
     return true;
   } catch (error) {
     console.error('Error saving symptoms:', error);
@@ -154,7 +155,7 @@ export async function saveSymptoms(date, symptoms) {
  */
 export async function getSymptoms() {
   try {
-    const data = await SecureStore.getItemAsync(sk(KEYS.SYMPTOMS));
+    const data = await AsyncStorage.getItem(sk(KEYS.SYMPTOMS));
     return data ? JSON.parse(data) : null;
   } catch (error) {
     console.error('Error getting symptoms:', error);
@@ -168,9 +169,9 @@ export async function getSymptoms() {
 export async function clearAllData() {
   try {
     await Promise.all([
-      SecureStore.deleteItemAsync(sk(KEYS.PERIOD_DATA)),
-      SecureStore.deleteItemAsync(sk(KEYS.MOOD_DATA)),
-      SecureStore.deleteItemAsync(sk(KEYS.SYMPTOMS)),
+      AsyncStorage.removeItem(sk(KEYS.PERIOD_DATA)),
+      AsyncStorage.removeItem(sk(KEYS.MOOD_DATA)),
+      AsyncStorage.removeItem(sk(KEYS.SYMPTOMS)),
     ]);
     return true;
   } catch (error) {

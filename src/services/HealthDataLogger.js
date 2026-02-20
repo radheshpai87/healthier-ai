@@ -5,7 +5,7 @@
  * Integrates with Random Forest Risk Engine for offline predictions.
  */
 
-import * as SecureStore from 'expo-secure-store';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { predictRisk, analyzeCycleHistory } from '../engine/RandomForestRiskEngine';
 import { predictRisk as mlApiPredict, getHealthScore as mlApiHealthScore } from './mlApiService';
 import { addToSyncQueue, getVillageCode } from './storageService';
@@ -52,7 +52,7 @@ export async function saveUserProfile(profile) {
     // Merge with existing profile so partial updates don't wipe fields
     let existing = {};
     try {
-      const stored = await SecureStore.getItemAsync(k(KEYS.USER_PROFILE));
+      const stored = await AsyncStorage.getItem(k(KEYS.USER_PROFILE));
       if (stored) existing = JSON.parse(stored);
     } catch (_) {}
 
@@ -64,7 +64,7 @@ export async function saveUserProfile(profile) {
       merged.bmi = Math.round((merged.weight / (heightInMeters * heightInMeters)) * 10) / 10;
     }
     
-    await SecureStore.setItemAsync(k(KEYS.USER_PROFILE), JSON.stringify(merged));
+    await AsyncStorage.setItem(k(KEYS.USER_PROFILE), JSON.stringify(merged));
     return true;
   } catch (error) {
     console.error('Error saving user profile:', error);
@@ -78,7 +78,7 @@ export async function saveUserProfile(profile) {
  */
 export async function getUserProfile() {
   try {
-    const profile = await SecureStore.getItemAsync(k(KEYS.USER_PROFILE));
+    const profile = await AsyncStorage.getItem(k(KEYS.USER_PROFILE));
     return profile ? JSON.parse(profile) : null;
   } catch (error) {
     console.error('Error getting user profile:', error);
@@ -93,7 +93,7 @@ export async function getUserProfile() {
 export async function clearHealthData() {
   try {
     await Promise.all(
-      Object.values(KEYS).map((key) => SecureStore.deleteItemAsync(k(key)))
+      Object.values(KEYS).map((key) => AsyncStorage.removeItem(k(key)))
     );
     return true;
   } catch (error) {
@@ -141,7 +141,7 @@ export async function logDailyHealth(logData) {
       new Date(log.date) > ninetyDaysAgo
     );
     
-    await SecureStore.setItemAsync(k(KEYS.DAILY_LOGS), JSON.stringify(filteredLogs));
+    await AsyncStorage.setItem(k(KEYS.DAILY_LOGS), JSON.stringify(filteredLogs));
     
     // Perform risk assessment
     const riskResult = await performRiskAssessment(newLog);
@@ -173,7 +173,7 @@ export async function logDailyHealth(logData) {
  */
 export async function getDailyLogs() {
   try {
-    const logs = await SecureStore.getItemAsync(k(KEYS.DAILY_LOGS));
+    const logs = await AsyncStorage.getItem(k(KEYS.DAILY_LOGS));
     return logs ? JSON.parse(logs) : [];
   } catch (error) {
     console.error('Error getting daily logs:', error);
@@ -331,7 +331,7 @@ async function saveRiskAssessment(assessment) {
     // Keep last 100 assessments
     const trimmedHistory = history.slice(-100);
     
-    await SecureStore.setItemAsync(k(KEYS.RISK_HISTORY), JSON.stringify(trimmedHistory));
+    await AsyncStorage.setItem(k(KEYS.RISK_HISTORY), JSON.stringify(trimmedHistory));
   } catch (error) {
     console.error('Error saving risk history:', error);
   }
@@ -343,7 +343,7 @@ async function saveRiskAssessment(assessment) {
  */
 export async function getRiskHistory() {
   try {
-    const history = await SecureStore.getItemAsync(k(KEYS.RISK_HISTORY));
+    const history = await AsyncStorage.getItem(k(KEYS.RISK_HISTORY));
     return history ? JSON.parse(history) : [];
   } catch (error) {
     console.error('Error getting risk history:', error);
@@ -364,7 +364,7 @@ export async function logSymptoms(date, symptoms) {
       timestamp: new Date().toISOString(),
     };
     
-    await SecureStore.setItemAsync(k(KEYS.SYMPTOMS_LOG), JSON.stringify(allSymptoms));
+    await AsyncStorage.setItem(k(KEYS.SYMPTOMS_LOG), JSON.stringify(allSymptoms));
     
     // Queue for backend sync (unified system)
     const villageCode = await getVillageCode();
@@ -390,7 +390,7 @@ export async function logSymptoms(date, symptoms) {
  */
 export async function getSymptoms() {
   try {
-    const symptoms = await SecureStore.getItemAsync(k(KEYS.SYMPTOMS_LOG));
+    const symptoms = await AsyncStorage.getItem(k(KEYS.SYMPTOMS_LOG));
     return symptoms ? JSON.parse(symptoms) : {};
   } catch (error) {
     console.error('Error getting symptoms:', error);

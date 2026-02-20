@@ -13,11 +13,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Send, Volume2 } from 'lucide-react-native';
 import * as Speech from 'expo-speech';
-import * as SecureStore from 'expo-secure-store';
 import { useLanguage } from '../../src/context/LanguageContext';
 import { translations } from '../../src/constants/translations';
 import { getHealthAdvice } from '../../src/api/gemini';
 import { scopedKey } from '../../src/services/authService';
+import { getLastRiskResult } from '../../src/services/storageService';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const CHAT_STORAGE_KEY = 'aurahealth_chat_history';
 const chatKey = () => scopedKey(CHAT_STORAGE_KEY);
@@ -28,14 +29,21 @@ export default function ChatScreen() {
   const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [riskContext, setRiskContext] = useState(null);
   const flatListRef = useRef(null);
   const hasLoaded = useRef(false);
 
-  // Load chat history on mount
+  // Load chat history and last risk context on mount
   useEffect(() => {
     (async () => {
       try {
-        const stored = await SecureStore.getItemAsync(chatKey());
+        const lastRisk = await getLastRiskResult();
+        if (lastRisk) setRiskContext(lastRisk);
+      } catch (e) {
+        console.warn('[Chat] Failed to load risk context:', e);
+      }
+      try {
+        const stored = await AsyncStorage.getItem(chatKey());
         if (stored) {
           const parsed = JSON.parse(stored);
           if (Array.isArray(parsed) && parsed.length > 0) {
@@ -56,9 +64,9 @@ export default function ChatScreen() {
   // Save chat history whenever messages change (after initial load)
   useEffect(() => {
     if (!hasLoaded.current || messages.length === 0) return;
-    // Keep only the last 50 messages to stay within SecureStore limits
+    // Keep only the last 50 messages to avoid unbounded growth
     const toSave = messages.slice(-50);
-    SecureStore.setItemAsync(chatKey(), JSON.stringify(toSave)).catch(() => {});
+    AsyncStorage.setItem(chatKey(), JSON.stringify(toSave)).catch(() => {});
   }, [messages]);
 
   const sendMessage = async () => {
@@ -76,7 +84,17 @@ export default function ChatScreen() {
     setIsLoading(true);
 
     try {
-      const response = await getHealthAdvice(trimmed, language);
+      // Build conversation history from the last 10 exchange pairs (bot messages only after user)
+      const history = [];
+      const all = messages.filter(m => !m.isWelcome); // exclude welcome
+      for (let i = 0; i < all.length - 1; i++) {
+        if (!all[i].isBot && all[i + 1]?.isBot) {
+          history.push({ userText: all[i].text, botText: all[i + 1].text });
+        }
+      }
+      const trimmedHistory = history.slice(-8); // keep last 8 pairs
+
+      const response = await getHealthAdvice(trimmed, language, riskContext, trimmedHistory);
       const botMessage = {
         id: (Date.now() + 1).toString(),
         text: response,

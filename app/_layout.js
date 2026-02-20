@@ -9,6 +9,7 @@ import { startAutoSync, stopAutoSync } from '../src/services/syncService';
 import { getRole } from '../src/services/storageService';
 import { restoreSession, getCurrentUserId } from '../src/services/authService';
 import { ROLES } from '../src/utils/constants';
+import { prewarmMLApi } from '../src/services/mlApiService';
 
 // ── Inner navigator — lives inside AuthProvider so it can use useAuth() ────
 function AppNavigator() {
@@ -88,6 +89,7 @@ function AppNavigator() {
   // Background sync
   useEffect(() => {
     startAutoSync();
+    prewarmMLApi(); // wake Render free-tier service early
     return () => stopAutoSync();
   }, []);
 

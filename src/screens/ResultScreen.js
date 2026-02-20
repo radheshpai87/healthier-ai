@@ -23,6 +23,7 @@ import {
   StyleSheet,
   ScrollView,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -31,6 +32,8 @@ import RiskBadge from '../components/RiskBadge';
 import { triggerEmergency, sendEmergencySMS, promptEmergencyCall } from '../services/emergencyService';
 import { RISK_LEVELS, HEALTH_GRADE_COLORS } from '../utils/constants';
 import { translations } from '../constants/translations';
+import { generateSymptomAdvice } from '../api/gemini';
+import { saveLastRiskResult } from '../services/storageService';
 
 // ── Translations ───────────────────────────────
 const t = {
@@ -87,7 +90,13 @@ export default function ResultScreen() {
   const source = params.source || 'rule_based';
   const tGlobal = translations[lang] || translations.en;
 
-  const [smsStatus, setSmsStatus] = useState(null); // null | 'sent' | 'failed'
+  const symptoms = (() => { try { return JSON.parse(params.symptomsJson || '{}'); } catch { return {}; } })();
+  const emergency = (() => { try { return JSON.parse(params.emergencyJson || '{}'); } catch { return {}; } })();
+  const details = (() => { try { return JSON.parse(params.detailsJson || '{}'); } catch { return {}; } })();
+
+  const [smsStatus, setSmsStatus] = useState(null);
+  const [aiAdvice, setAiAdvice] = useState(null);
+  const [aiLoading, setAiLoading] = useState(true);
 
   // ── Auto-trigger emergency if HIGH risk ──────
   useEffect(() => {
@@ -98,6 +107,27 @@ export default function ResultScreen() {
       }, 1000);
       return () => clearTimeout(timer);
     }
+  }, []);
+
+  // Fetch AI advice grounded in the ML risk output
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        await saveLastRiskResult({ level, score, mlConfidence, healthGrade, recommendationKey, source, symptoms, emergency, details });
+        const text = await generateSymptomAdvice(
+          { level, score, mlConfidence, healthGrade, symptoms, emergency, details },
+          lang
+        );
+        if (!cancelled) setAiAdvice(text);
+      } catch (e) {
+        console.warn('[ResultScreen] AI advice failed:', e);
+        if (!cancelled) setAiAdvice(null);
+      } finally {
+        if (!cancelled) setAiLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
   }, []);
 
   const handleEmergencyTrigger = async () => {
@@ -188,6 +218,23 @@ export default function ResultScreen() {
             </View>
           </View>
         )}
+
+        {/* AI Symptom Advice */}
+        <View style={styles.aiCard}>
+          <Text style={styles.aiCardLabel}>
+            {lang === 'hi' ? 'AI स्वास्थ्य सलाह' : 'AI Health Advice'}
+          </Text>
+          {aiLoading ? (
+            <View style={styles.aiLoading}>
+              <ActivityIndicator size="small" color="#C2185B" />
+              <Text style={styles.aiLoadingText}>
+                {lang === 'hi' ? 'सलाह तैयार हो रही है...' : 'Generating personalised advice...'}
+              </Text>
+            </View>
+          ) : aiAdvice ? (
+            <Text style={styles.aiAdviceText}>{aiAdvice}</Text>
+          ) : null}
+        </View>
 
         {/* Emergency Actions (only for HIGH risk) */}
         {requiresEmergency && (
@@ -417,5 +464,42 @@ const styles = StyleSheet.create({
   },
   navBtnTextSecondary: {
     color: '#FFB6C1',
+  },
+  aiCard: {
+    backgroundColor: '#FFF5F5',
+    borderRadius: 14,
+    padding: 20,
+    marginBottom: 24,
+    borderWidth: 1.5,
+    borderColor: '#FFB6C1',
+    shadowColor: '#C2185B',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  aiCardLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#C2185B',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    marginBottom: 12,
+  },
+  aiLoading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 6,
+  },
+  aiLoadingText: {
+    fontSize: 13,
+    color: '#888',
+    fontStyle: 'italic',
+  },
+  aiAdviceText: {
+    fontSize: 15,
+    color: '#444',
+    lineHeight: 23,
   },
 });

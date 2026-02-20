@@ -70,6 +70,13 @@ const t = {
     sleepPlaceholder: 'e.g. 7',
     exerciseLabel: 'Exercise (days/week)',
     exercisePlaceholder: 'e.g. 3',
+    durationLabel: 'When did symptoms start?',
+    durationOpts: ['Today', 'Few Days', '1 Week+', 'Ongoing'],
+    painIntensityLabel: 'Pain Intensity (1 = mild, 10 = worst)',
+    bleedingLevelLabel: 'Bleeding Heaviness',
+    bleedingLevelOpts: ['Light', 'Moderate', 'Heavy', 'Very Heavy'],
+    fatigueLevelLabel: 'Fatigue Severity',
+    fatigueLevelOpts: ['Mild', 'Moderate', 'Severe'],
   },
   hi: {
     title: 'स्वास्थ्य मूल्यांकन',
@@ -99,6 +106,13 @@ const t = {
     sleepPlaceholder: 'जैसे 7',
     exerciseLabel: 'व्यायाम (दिन/सप्ताह)',
     exercisePlaceholder: 'जैसे 3',
+    durationLabel: 'लक्षण कब से हैं?',
+    durationOpts: ['आज', 'कुछ दिन', '1 सप्ताह+', 'लंबे समय से'],
+    painIntensityLabel: 'दर्द की तीव्रता (1=हल्का, 10=असहनीय)',
+    bleedingLevelLabel: 'रक्तस्राव की मात्रा',
+    bleedingLevelOpts: ['हल्का', 'मध्यम', 'भारी', 'बहुत भारी'],
+    fatigueLevelLabel: 'थकान की तीव्रता',
+    fatigueLevelOpts: ['हल्की', 'मध्यम', 'गंभीर'],
   },
 };
 
@@ -136,6 +150,12 @@ export default function SymptomScreen() {
   const [sleepHours, setSleepHours] = useState('');
   const [exerciseFreq, setExerciseFreq] = useState('');
   const [userProfile, setUserProfile] = useState(null);
+
+  // ── Detail / Severity State ──────────────────
+  const [painIntensity, setPainIntensity] = useState(0); // 0 = unset, 1-10
+  const [bleedingLevel, setBleedingLevel] = useState(''); // Light/Moderate/Heavy/Very Heavy
+  const [fatigueLevel, setFatigueLevel] = useState(''); // Mild/Moderate/Severe
+  const [symptomDuration, setSymptomDuration] = useState(''); // Today/Few Days/1 Week+/Ongoing
 
   // Load profile on mount (for ML prediction context)
   React.useEffect(() => {
@@ -222,6 +242,14 @@ export default function SymptomScreen() {
           healthGrade: result.healthGrade || '',
           recommendationKey: result.recommendationKey || '',
           source: result.source || '',
+          symptomsJson: JSON.stringify(symptoms),
+          emergencyJson: JSON.stringify(emergency),
+          detailsJson: JSON.stringify({
+            painIntensity: painIntensity || null,
+            bleedingLevel: bleedingLevel || null,
+            fatigueLevel: fatigueLevel || null,
+            symptomDuration: symptomDuration || null,
+          }),
         },
       });
     } catch (error) {
@@ -260,12 +288,50 @@ export default function SymptomScreen() {
             onToggle={() => toggleSymptom('heavyBleeding')}
             weight={SYMPTOM_WEIGHTS.heavyBleeding}
           />
+          {symptoms.heavyBleeding && (
+            <View style={styles.detailContainer}>
+              <Text style={styles.detailLabel}>{texts.bleedingLevelLabel}</Text>
+              <View style={styles.chipRow}>
+                {texts.bleedingLevelOpts.map((opt) => (
+                  <TouchableOpacity
+                    key={opt}
+                    style={[styles.chip, bleedingLevel === opt && styles.chipActive]}
+                    onPress={() => setBleedingLevel(bleedingLevel === opt ? '' : opt)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.chipText, bleedingLevel === opt && styles.chipTextActive]}>
+                      {opt}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          )}
           <SymptomToggle
             label={texts.fatigue}
             active={symptoms.fatigue}
             onToggle={() => toggleSymptom('fatigue')}
             weight={SYMPTOM_WEIGHTS.fatigue}
           />
+          {symptoms.fatigue && (
+            <View style={styles.detailContainer}>
+              <Text style={styles.detailLabel}>{texts.fatigueLevelLabel}</Text>
+              <View style={styles.chipRow}>
+                {texts.fatigueLevelOpts.map((opt) => (
+                  <TouchableOpacity
+                    key={opt}
+                    style={[styles.chip, fatigueLevel === opt && styles.chipActive]}
+                    onPress={() => setFatigueLevel(fatigueLevel === opt ? '' : opt)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.chipText, fatigueLevel === opt && styles.chipTextActive]}>
+                      {opt}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          )}
           <SymptomToggle
             label={texts.dizziness}
             active={symptoms.dizziness}
@@ -284,12 +350,48 @@ export default function SymptomScreen() {
             onToggle={() => toggleSymptom('pain')}
             weight={SYMPTOM_WEIGHTS.pain}
           />
+          {symptoms.pain && (
+            <View style={styles.detailContainer}>
+              <Text style={styles.detailLabel}>{texts.painIntensityLabel}</Text>
+              <View style={styles.chipRow}>
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((val) => (
+                  <TouchableOpacity
+                    key={val}
+                    style={[styles.chip, styles.chipSmall, painIntensity === val && styles.chipActive]}
+                    onPress={() => setPainIntensity(painIntensity === val ? 0 : val)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.chipText, painIntensity === val && styles.chipTextActive]}>
+                      {val}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          )}
           <SymptomToggle
             label={texts.pregnancyIssue}
             active={symptoms.pregnancyIssue}
             onToggle={() => toggleSymptom('pregnancyIssue')}
             weight={SYMPTOM_WEIGHTS.pregnancyIssue}
           />
+
+          {/* ── Symptom Duration ─────────── */}
+          <Text style={[styles.miniLabel, { marginTop: 16 }]}>{texts.durationLabel}</Text>
+          <View style={styles.chipRow}>
+            {texts.durationOpts.map((opt) => (
+              <TouchableOpacity
+                key={opt}
+                style={[styles.chip, symptomDuration === opt && styles.chipActive]}
+                onPress={() => setSymptomDuration(symptomDuration === opt ? '' : opt)}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.chipText, symptomDuration === opt && styles.chipTextActive]}>
+                  {opt}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
 
           {/* ── Hemoglobin Section ────────── */}
           <Text style={styles.sectionTitle}>{texts.hbSection}</Text>
@@ -540,5 +642,25 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     color: '#FFFFFF',
+  },
+  detailContainer: {
+    marginLeft: 8,
+    marginBottom: 4,
+    paddingLeft: 12,
+    borderLeftWidth: 2,
+    borderLeftColor: '#FFB6C1',
+  },
+  detailLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#C2185B',
+    marginTop: 4,
+    marginBottom: 4,
+  },
+  chipSmall: {
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    minWidth: 32,
+    alignItems: 'center',
   },
 });
