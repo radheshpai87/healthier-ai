@@ -21,13 +21,19 @@ const MODELS = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.5-pro'];
  * @param {number} maxRetries
  * @returns {Promise<string>}
  */
-async function callWithFallback(prompt, maxRetries = 2) {
+async function callWithFallback(prompt, maxRetries = 2, maxTokens = 256) {
   let lastError = null;
 
   for (const modelName of MODELS) {
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
-        const model = genAI.getGenerativeModel({ model: modelName });
+        const model = genAI.getGenerativeModel({
+          model: modelName,
+          generationConfig: {
+            maxOutputTokens: maxTokens,
+            temperature: 0.7,
+          },
+        });
         const result = await model.generateContent(prompt);
         const response = await result.response;
         return response.text();
@@ -75,22 +81,20 @@ export async function getHealthAdvice(symptom, language = 'en') {
     ? 'Respond in Hindi (हिंदी) language only.'
     : 'Respond in English.';
 
-  const prompt = `You are a supportive women's health companion AI called AuraHealth. 
-A user has described the following symptom or concern related to menstrual health: "${symptom}"
+  const prompt = `You are AuraHealth, a women's health companion. User concern: "${symptom}"
 
 ${languageInstruction}
 
-Please provide:
-1. A warm, empathetic acknowledgment of their concern
-2. General wellness tips that may help (like hydration, rest, gentle exercise, heat therapy)
-3. When they should consider consulting a healthcare provider
-
-Keep your response concise (under 150 words), supportive, and accessible for rural users.
-
-IMPORTANT: End your response with a clear disclaimer that this is general wellness information, not medical advice, and they should consult a healthcare provider for persistent or severe symptoms.`;
+Rules — STRICTLY follow:
+- Maximum 60 words total. Do NOT exceed this.
+- Use short sentences and bullet points.
+- Structure: 1 line empathy → 2-3 bullet tips → 1 line "see a doctor if…" → 1 line disclaimer.
+- No greetings, no headers, no numbering like "1." "2." — just use bullet •.
+- Disclaimer (last line): "⚠️ General wellness info, not medical advice."
+- Be warm but brief. Written for rural users with limited literacy.`;
 
   try {
-    return await callWithFallback(prompt);
+    return await callWithFallback(prompt, 2, 200);
   } catch (error) {
     console.error('Gemini API Error:', error);
     
@@ -117,15 +121,17 @@ export async function analyzeMoodPatterns(moodData, language = 'en') {
 
   const moodSummary = moodData.map(m => `${m.date}: ${m.mood}`).join(', ');
 
-  const prompt = `You are AuraHealth, a supportive wellness companion.
-Analyze this mood pattern from the past month: ${moodSummary}
+  const prompt = `You are AuraHealth. Mood data: ${moodSummary}
 
 ${languageInstruction}
 
-Provide a brief, supportive insight about any patterns you notice and one wellness tip. Keep it under 80 words.`;
+Rules — STRICTLY follow:
+- Maximum 40 words. Do NOT exceed this.
+- One sentence about the pattern, one actionable tip.
+- No greetings, no headers, no filler.`;
 
   try {
-    return await callWithFallback(prompt);
+    return await callWithFallback(prompt, 2, 120);
   } catch (error) {
     console.error('Gemini API Error:', error);
     return language === 'hi' 
