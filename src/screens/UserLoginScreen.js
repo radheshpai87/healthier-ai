@@ -214,7 +214,7 @@ export default function UserLoginScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.logo}>🌸</Text>
+        <Text style={styles.logo}>AH</Text>
         <Text style={styles.title}>{txt.title}</Text>
         <Text style={styles.subtitle}>{txt.subtitle}</Text>
       </View>
@@ -244,7 +244,7 @@ export default function UserLoginScreen() {
                 </View>
                 <Text style={styles.userName} numberOfLines={1}>{u.name}</Text>
                 <Text style={styles.userRole}>
-                  {u.role === 'asha' ? '👩‍⚕️ ASHA' : '👩 Woman'}
+                  {u.role === 'asha' ? 'ASHA Worker' : 'Woman'}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -278,7 +278,10 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
   },
   logo: {
-    fontSize: 48,
+    fontSize: 36,
+    fontWeight: '800',
+    color: '#C2185B',
+    letterSpacing: -1,
     marginBottom: 8,
   },
   title: {

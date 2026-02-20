@@ -30,7 +30,7 @@ export default function LoginScreen({ onLogin }) {
   return (
     <div style={styles.container}>
       <div style={styles.card}>
-        <h1 style={styles.title}>🏥 AuraHealth</h1>
+        <h1 style={styles.title}>AuraHealth</h1>
         <h2 style={styles.subtitle}>NGO Dashboard</h2>
         <p style={styles.description}>
           View anonymized health analytics from village field visits.
@@ -53,7 +53,7 @@ export default function LoginScreen({ onLogin }) {
         </form>
 
         <p style={styles.privacy}>
-          🔒 All data shown is anonymized and aggregated.
+          All data shown is anonymized and aggregated.
           No personal information is stored or displayed.
         </p>
       </div>

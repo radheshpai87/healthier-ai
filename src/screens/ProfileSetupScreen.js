@@ -59,7 +59,7 @@ const t = {
     continueBtn: 'Continue',
     skipBtn: 'Skip for now',
     skipNote: 'You can complete your profile later in Settings or Health tab.',
-    privacyNote: '🔒 All data stays on your phone — nothing is uploaded.',
+    privacyNote: 'All data stays on your phone — nothing is uploaded.',
     // Validation
     ageRequired: 'Please enter your age',
     ageInvalid: 'Age must be between 10 and 60',
@@ -88,7 +88,7 @@ const t = {
     continueBtn: 'जारी रखें',
     skipBtn: 'अभी छोड़ें',
     skipNote: 'आप बाद में सेटिंग्स या स्वास्थ्य टैब में प्रोफ़ाइल पूरी कर सकती हैं।',
-    privacyNote: '🔒 सारा डेटा आपके फ़ोन पर ही रहता है — कुछ भी अपलोड नहीं होता।',
+    privacyNote: 'सारा डेटा आपके फ़ोन पर ही रहता है — कुछ भी अपलोड नहीं होता।',
     // Validation
     ageRequired: 'कृपया अपनी आयु दर्ज करें',
     ageInvalid: 'आयु 10 से 60 के बीच होनी चाहिए',
@@ -467,8 +467,8 @@ export default function ProfileSetupScreen() {
           {!isEditing && (
             <Text style={styles.skipNote}>
               {lang === 'hi'
-                ? '🔒 अगली स्क्रीन पर एक PIN बनाएं ताकि आप बाद में वापस लॉग इन कर सकें।'
-                : '🔒 Next, create a PIN so you can log back in later.'}
+                ? 'अगली स्क्रीन पर एक PIN बनाएं ताकि आप बाद में वापस लॉग इन कर सकें।'
+                : 'Next, create a PIN so you can log back in later.'}
             </Text>
           )}
 

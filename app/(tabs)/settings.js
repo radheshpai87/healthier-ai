@@ -222,7 +222,7 @@ export default function SettingsScreen() {
           <TouchableOpacity style={styles.saveButton} onPress={handleSaveContacts}>
             <Text style={styles.saveButtonText}>
               {contactsSaved
-                ? (language === 'hi' ? '✓ सहेजा गया' : '✓ Saved')
+                ? (language === 'hi' ? 'सहेजा गया' : 'Saved')
                 : (language === 'hi' ? 'संपर्क सहेजें' : 'Save Contacts')}
             </Text>
           </TouchableOpacity>
@@ -242,8 +242,8 @@ export default function SettingsScreen() {
             <User size={20} color="#FFB6C1" />
             <Text style={styles.roleButtonText}>
               {hasProfile
-                ? (language === 'hi' ? '✏️ प्रोफ़ाइल संपादित करें' : '✏️ Edit Profile')
-                : (language === 'hi' ? '👤 प्रोफ़ाइल बनाएं' : '👤 Set Up Profile')}
+                ? (language === 'hi' ? 'प्रोफ़ाइल संपादित करें' : 'Edit Profile')
+                : (language === 'hi' ? 'प्रोफ़ाइल बनाएं' : 'Set Up Profile')}
             </Text>
           </TouchableOpacity>
 
@@ -271,7 +271,7 @@ export default function SettingsScreen() {
             <Text style={styles.roleButtonText}>
               {isDetecting
                 ? (language === 'hi' ? 'पहचान रहे हैं...' : 'Detecting...')
-                : (language === 'hi' ? '📍 स्थान फिर से पहचानें' : '📍 Re-detect Location')}
+                : (language === 'hi' ? 'स्थान फिर से पहचानें' : 'Re-detect Location')}
             </Text>
           </TouchableOpacity>
 
@@ -290,7 +290,7 @@ export default function SettingsScreen() {
           <TouchableOpacity style={styles.roleButton} onPress={() => router.replace('/login')}>
             <User size={20} color="#7B1FA2" />
             <Text style={[styles.roleButtonText, { color: '#7B1FA2' }]}>
-              {language === 'hi' ? '👤 उपयोगकर्ता बदलें' : '👤 Switch User'}
+              {language === 'hi' ? 'उपयोगकर्ता बदलें' : 'Switch User'}
             </Text>
           </TouchableOpacity>
 
@@ -298,7 +298,7 @@ export default function SettingsScreen() {
 
           <TouchableOpacity style={[styles.roleButton, { borderColor: '#FFCDD2' }]} onPress={handleLogout}>
             <Text style={[styles.roleButtonText, { color: '#E53935' }]}>
-              {language === 'hi' ? '🚪 लॉग आउट' : '🚪 Log Out'}
+              {language === 'hi' ? 'लॉग आउट' : 'Log Out'}
             </Text>
           </TouchableOpacity>
 

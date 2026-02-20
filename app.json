@@ -8,7 +8,7 @@
     "newArchEnabled": true,
     "extra": {
       "geminiApiKey": "",
-      "backendUrl": ""
+      "backendUrl": "http://10.1.161.140:3000/api"
     },
     "splash": {
       "backgroundColor": "#FFF5F5"

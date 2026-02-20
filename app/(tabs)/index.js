@@ -78,11 +78,11 @@ export default function HomeScreen() {
   const setGreetingMessage = () => {
     const hour = new Date().getHours();
     if (hour < 12) {
-      setGreeting(language === 'hi' ? 'सुप्रभात! 🌅' : 'Good Morning! 🌅');
+      setGreeting(language === 'hi' ? 'सुप्रभात!' : 'Good Morning!');
     } else if (hour < 17) {
-      setGreeting(language === 'hi' ? 'नमस्ते! ☀️' : 'Good Afternoon! ☀️');
+      setGreeting(language === 'hi' ? 'नमस्ते!' : 'Good Afternoon!');
     } else {
-      setGreeting(language === 'hi' ? 'शुभ संध्या! 🌙' : 'Good Evening! 🌙');
+      setGreeting(language === 'hi' ? 'शुभ संध्या!' : 'Good Evening!');
     }
   };
 
@@ -116,19 +116,19 @@ export default function HomeScreen() {
 
   const setDailyTip = () => {
     const tips = language === 'hi' ? [
-      '💧 आज खूब पानी पिएं - हाइड्रेशन जरूरी है!',
-      '🧘 5 मिनट गहरी सांस लें - तनाव कम होगा।',
-      '🚶‍♀️ थोड़ा चलें - शरीर और मन दोनों को फायदा।',
-      '😴 आज रात जल्दी सोने की कोशिश करें।',
-      '🥗 हरी सब्जियां खाएं - आयरन जरूरी है।',
-      '💆 खुद के लिए कुछ अच्छा करें आज!',
+      'आज खूब पानी पिएं - हाइड्रेशन जरूरी है!',
+      '5 मिनट गहरी सांस लें - तनाव कम होगा।',
+      'थोड़ा चलें - शरीर और मन दोनों को फायदा।',
+      'आज रात जल्दी सोने की कोशिश करें।',
+      'हरी सब्जियां खाएं - आयरन जरूरी है।',
+      'खुद के लिए कुछ अच्छा करें आज!',
     ] : [
-      '💧 Stay hydrated today - drink plenty of water!',
-      '🧘 Take 5 minutes for deep breathing - reduce stress.',
-      '🚶‍♀️ Take a short walk - benefits body and mind.',
-      '😴 Try to get to bed early tonight.',
-      '🥗 Eat leafy greens - iron is important!',
-      '💆 Do something nice for yourself today!',
+      'Stay hydrated today - drink plenty of water!',
+      'Take 5 minutes for deep breathing - reduce stress.',
+      'Take a short walk - benefits body and mind.',
+      'Try to get to bed early tonight.',
+      'Eat leafy greens - iron is important!',
+      'Do something nice for yourself today!',
     ];
     
     const dayIndex = new Date().getDate() % tips.length;
@@ -276,8 +276,8 @@ export default function HomeScreen() {
             <View style={styles.noCycleInfo}>
               <Text style={styles.noCycleText}>
                 {language === 'hi' 
-                  ? 'अपना पहला पीरियड लॉग करें 👇'
-                  : 'Log your first period 👇'
+                  ? 'अपना पहला पीरियड लॉग करें'
+                  : 'Log your first period'
                 }
               </Text>
               <TouchableOpacity 

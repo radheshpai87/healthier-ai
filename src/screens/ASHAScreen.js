@@ -192,7 +192,7 @@ export default function ASHAScreen() {
       notes: `Moderate: ${summary.moderate}, Low: ${summary.low}`,
     });
 
-    Alert.alert('✅', texts.visitSaved);
+    Alert.alert('', texts.visitSaved);
   };
 
   // ── Summary Calculations ─────────────────────
@@ -291,8 +291,8 @@ export default function ASHAScreen() {
         <View style={styles.syncCard}>
           <Text style={styles.sectionTitle}>{texts.syncStatus}</Text>
           <View style={styles.syncRow}>
-            <Text style={styles.syncLabel}>
-              {syncInfo.isOnline ? `🟢 ${texts.online}` : `🔴 ${texts.offline}`}
+            <Text style={[styles.syncLabel, { color: syncInfo.isOnline ? '#4CAF50' : '#E53935', fontWeight: '600' }]}>
+              {syncInfo.isOnline ? texts.online : texts.offline}
             </Text>
             <Text style={styles.syncLabel}>
               {texts.pending}: {syncInfo.pendingCount}

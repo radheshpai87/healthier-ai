@@ -96,8 +96,8 @@ IMPORTANT: End your response with a clear disclaimer that this is general wellne
     
     // Friendly fallback when all models are exhausted
     const fallbackMessages = {
-      en: "I'm having trouble connecting right now — the AI service is busy. Please try again in a few minutes. In the meantime, stay hydrated and rest well. If your symptoms persist, please consult a healthcare provider.\n\n⚠️ Disclaimer: This is general wellness information, not medical advice.",
-      hi: "अभी AI सेवा व्यस्त है — कृपया कुछ मिनट बाद पुनः प्रयास करें। इस बीच, खूब पानी पिएं और अच्छी तरह आराम करें। यदि लक्षण बने रहें, तो कृपया डॉक्टर से परामर्श लें।\n\n⚠️ अस्वीकरण: यह सामान्य स्वास्थ्य जानकारी है, चिकित्सा सलाह नहीं।"
+      en: "I'm having trouble connecting right now — the AI service is busy. Please try again in a few minutes. In the meantime, stay hydrated and rest well. If your symptoms persist, please consult a healthcare provider.\n\nNote: This is general wellness information, not medical advice.",
+      hi: "अभी AI सेवा व्यस्त है — कृपया कुछ मिनट बाद पुनः प्रयास करें। इस बीच, खूब पानी पिएं और अच्छी तरह आराम करें। यदि लक्षण बने रहें, तो कृपया डॉक्टर से परामर्श लें।\n\nअस्वीकरण: यह सामान्य स्वास्थ्य जानकारी है, चिकित्सा सलाह नहीं।"
     };
     
     return fallbackMessages[language] || fallbackMessages.en;

@@ -115,16 +115,16 @@ app.use((err, req, res, next) => {
 mongoose
   .connect(MONGODB_URI)
   .then(() => {
-    console.log('✅ Connected to MongoDB Atlas');
+    console.log('Connected to MongoDB Atlas');
 
     app.listen(PORT, () => {
-      console.log(`🚀 AuraHealth backend running on port ${PORT}`);
+      console.log(`AuraHealth backend running on port ${PORT}`);
       console.log(`   Health check: http://localhost:${PORT}/`);
       console.log(`   API base:     http://localhost:${PORT}/api`);
     });
   })
   .catch((error) => {
-    console.error('❌ MongoDB connection failed:', error.message);
+    console.error('MongoDB connection failed:', error.message);
     process.exit(1);
   });
 

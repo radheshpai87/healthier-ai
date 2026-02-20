@@ -12,9 +12,9 @@ const MOOD_COLORS = {
 };
 
 const MOOD_EMOJIS = {
-  happy: '😊',
-  neutral: '😐',
-  sad: '😢',
+  happy: 'H',
+  neutral: 'N',
+  sad: 'S',
 };
 
 export default function MoodHeatmap() {
@@ -72,7 +72,7 @@ export default function MoodHeatmap() {
                 { backgroundColor: MOOD_COLORS[item.mood] + '30' },
               ]}
             >
-              <Text style={styles.moodEmoji}>{MOOD_EMOJIS[item.mood]}</Text>
+              <Text style={[styles.moodEmoji, { color: MOOD_COLORS[item.mood] }]}>{MOOD_EMOJIS[item.mood]}</Text>
               <Text style={styles.dateLabel}>
                 {new Date(item.date).getDate()}
               </Text>
@@ -83,15 +83,15 @@ export default function MoodHeatmap() {
         {stats && (
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
-              <Text style={styles.statEmoji}>😊</Text>
+              <Text style={[styles.statEmoji, { color: '#4CAF50' }]}>Good</Text>
               <Text style={styles.statCount}>{stats.happy}</Text>
             </View>
             <View style={styles.statItem}>
-              <Text style={styles.statEmoji}>😐</Text>
+              <Text style={[styles.statEmoji, { color: '#FFC107' }]}>Okay</Text>
               <Text style={styles.statCount}>{stats.neutral}</Text>
             </View>
             <View style={styles.statItem}>
-              <Text style={styles.statEmoji}>😢</Text>
+              <Text style={[styles.statEmoji, { color: '#FF5722' }]}>Low</Text>
               <Text style={styles.statCount}>{stats.sad}</Text>
             </View>
           </View>
@@ -160,7 +160,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   statEmoji: {
-    fontSize: 24,
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
   statCount: {
     fontSize: 16,

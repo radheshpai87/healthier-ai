@@ -247,8 +247,8 @@ export default function SymptomScreen() {
           {symptoms.lowHb && (
             <Text style={styles.hbWarning}>
               {lang === 'hi'
-                ? '⚠️ कम हीमोग्लोबिन पाया गया'
-                : '⚠️ Low hemoglobin detected'}
+                ? 'कम हीमोग्लोबिन पाया गया'
+                : 'Low hemoglobin detected'}
             </Text>
           )}
 

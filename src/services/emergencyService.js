@@ -79,7 +79,7 @@ export function buildEmergencyMessage(villageCode, location, riskScore, language
 
   if (language === 'hi') {
     return (
-      `🚨 उच्च जोखिम अलर्ट 🚨\n` +
+      `उच्च जोखिम चेतावनी\n` +
       `स्थान: ${villageCode || 'अज्ञात'}\n` +
       `जोखिम स्कोर: ${riskScore}\n` +
       `GPS: ${locationStr}\n` +
@@ -89,7 +89,7 @@ export function buildEmergencyMessage(villageCode, location, riskScore, language
   }
 
   return (
-    `🚨 High Risk Alert 🚨\n` +
+    `HIGH RISK ALERT\n` +
     `Location: ${villageCode || 'Unknown'}\n` +
     `Risk Score: ${riskScore}\n` +
     `GPS: ${locationStr}\n` +

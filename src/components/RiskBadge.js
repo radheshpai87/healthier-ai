@@ -19,12 +19,7 @@ import { RISK_COLORS, RISK_LEVELS } from '../utils/constants';
 export default function RiskBadge({ level, score, large = false }) {
   const color = RISK_COLORS[level] || '#999';
 
-  // Icons for each level
-  const icons = {
-    [RISK_LEVELS.LOW]: '✅',
-    [RISK_LEVELS.MODERATE]: '⚠️',
-    [RISK_LEVELS.HIGH]: '🚨',
-  };
+
 
   const levelLabels = {
     [RISK_LEVELS.LOW]: 'Low Risk',
@@ -42,9 +37,7 @@ export default function RiskBadge({ level, score, large = false }) {
       accessibilityRole="text"
       accessibilityLabel={`Risk level: ${levelLabels[level]}, Score: ${score}`}
     >
-      <Text style={[styles.icon, large && styles.largeIcon]}>
-        {icons[level] || '❓'}
-      </Text>
+      <View style={[styles.iconDot, large && styles.largeIconDot, { backgroundColor: color }]} />
       <Text style={[styles.level, { color }, large && styles.largeLevel]}>
         {levelLabels[level] || level}
       </Text>
@@ -71,12 +64,16 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 3,
   },
-  icon: {
-    fontSize: 32,
+  iconDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
     marginBottom: 8,
   },
-  largeIcon: {
-    fontSize: 48,
+  largeIconDot: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
     marginBottom: 12,
   },
   level: {
