@@ -301,6 +301,14 @@ export default function SymptomScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
+      {/* ── Custom Back Bar ──────────── */}
+      <View style={styles.backBar}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
+          <Text style={styles.backArrow}>←</Text>
+          <Text style={styles.backLabel} numberOfLines={1}>{texts.title}</Text>
+        </TouchableOpacity>
+      </View>
+
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.flex}
@@ -581,6 +589,33 @@ const styles = StyleSheet.create({
   },
   flex: {
     flex: 1,
+  },
+  backBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    backgroundColor: '#FFF5F5',
+    borderBottomWidth: 1,
+    borderBottomColor: '#FCE4EC',
+  },
+  backBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 4,
+    paddingRight: 12,
+  },
+  backArrow: {
+    fontSize: 22,
+    color: '#C2185B',
+    fontWeight: '600',
+  },
+  backLabel: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#333',
+    flexShrink: 1,
   },
   container: {
     padding: 18,

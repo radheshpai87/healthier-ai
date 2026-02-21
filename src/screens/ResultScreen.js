@@ -153,6 +153,14 @@ export default function ResultScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
+      {/* ── Custom Top Bar ─────────── */}
+      <View style={styles.topBar}>
+        <TouchableOpacity style={styles.topBarBtn} onPress={() => router.back()} activeOpacity={0.7}>
+          <Text style={styles.topBarArrow}>←</Text>
+          <Text style={styles.topBarLabel} numberOfLines={1}>{texts.title}</Text>
+        </TouchableOpacity>
+      </View>
+
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
 
         {/* ── Header Card ──────────────── */}
@@ -348,6 +356,33 @@ const styles = StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: '#FFF5F5',
+  },
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    backgroundColor: '#FFF5F5',
+    borderBottomWidth: 1,
+    borderBottomColor: '#FCE4EC',
+  },
+  topBarBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 4,
+    paddingRight: 12,
+  },
+  topBarArrow: {
+    fontSize: 22,
+    color: '#C2185B',
+    fontWeight: '600',
+  },
+  topBarLabel: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#333',
+    flexShrink: 1,
   },
   container: {
     padding: 18,
