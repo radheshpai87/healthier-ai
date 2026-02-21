@@ -28,7 +28,6 @@ import {
   AlertCircle,
   CheckCircle,
   Clock,
-  Lock,
   User,
 } from 'lucide-react-native';
 import LanguageSwitch from '../../src/components/LanguageSwitch';
@@ -261,26 +260,23 @@ export default function HomeScreen() {
           <LanguageSwitch />
         </View>
 
-        {/* PIN Protected Badge */}
-        {user && (
-          <View style={styles.pinBadge}>
-            <Lock size={14} color="#7B1FA2" />
-            <Text style={styles.pinBadgeText}>
-              {language === 'hi'
-                ? `PIN सुरक्षित • ${user.name || 'उपयोगकर्ता'}`
-                : `PIN Protected • ${user.name || 'User'}`
-              }
-            </Text>
-          </View>
-        )}
+
 
         {/* Hero Card */}
         <View style={styles.heroCard}>
+          <View style={styles.heroAccent} />
           <View style={styles.heroTop}>
-            <Heart size={32} color="#FFB6C1" fill="#FFB6C1" />
-            <Text style={styles.heroTitle}>
-              {language === 'hi' ? 'आपका स्वास्थ्य साथी' : 'Your Health Companion'}
-            </Text>
+            <View style={styles.heroIconCircle}>
+              <Heart size={26} color="#FFF" fill="#FFF" />
+            </View>
+            <View style={styles.heroTitleWrap}>
+              <Text style={styles.heroTitle}>
+                {language === 'hi' ? 'आपका स्वास्थ्य साथी' : 'Your Health Companion'}
+              </Text>
+              <Text style={styles.heroSubtitle}>
+                {language === 'hi' ? 'अपना ख्याल रखें 💕' : 'Taking care of you 💕'}
+              </Text>
+            </View>
           </View>
           
           {cycleDay ? (
@@ -409,9 +405,15 @@ export default function HomeScreen() {
               key={action.id}
               style={[styles.actionCard, { backgroundColor: action.color }]}
               onPress={action.onPress}
+              activeOpacity={0.8}
             >
-              {action.icon}
-              <Text style={styles.actionTitle}>{action.title}</Text>
+              <View style={styles.actionIconWrap}>
+                {action.icon}
+              </View>
+              <View style={styles.actionTextWrap}>
+                <Text style={styles.actionTitle}>{action.title}</Text>
+                <Text style={styles.actionSubtitle}>{action.subtitle}</Text>
+              </View>
               <ChevronRight size={16} color="#FFF" style={styles.actionArrow} />
             </TouchableOpacity>
           ))}
@@ -507,45 +509,56 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#333',
   },
-  pinBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    marginLeft: 20,
-    marginTop: 8,
-    backgroundColor: '#F3E5F5',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 12,
-    gap: 6,
-  },
-  pinBadgeText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#7B1FA2',
-  },
   heroCard: {
     backgroundColor: '#FFF',
     marginHorizontal: 20,
     marginTop: 15,
-    padding: 20,
-    borderRadius: 20,
-    elevation: 3,
-    shadowColor: '#FFB6C1',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
+    padding: 22,
+    borderRadius: 22,
+    elevation: 4,
+    shadowColor: '#E91E63',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  heroAccent: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 4,
+    backgroundColor: '#E91E63',
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
   },
   heroTop: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 15,
+    marginBottom: 16,
+  },
+  heroIconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#E91E63',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  heroTitleWrap: {
+    marginLeft: 14,
+    flex: 1,
   },
   heroTitle: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 19,
+    fontWeight: '700',
     color: '#333',
-    marginLeft: 10,
+  },
+  heroSubtitle: {
+    fontSize: 13,
+    color: '#999',
+    marginTop: 2,
   },
   cycleInfo: {
     alignItems: 'center',
@@ -703,29 +716,43 @@ const styles = StyleSheet.create({
   },
   quickActions: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     paddingHorizontal: 20,
     gap: 10,
   },
   actionCard: {
-    flex: 1,
-    padding: 15,
-    borderRadius: 15,
+    width: (width - 50) / 2,
+    flexDirection: 'row',
     alignItems: 'center',
+    padding: 14,
+    borderRadius: 16,
+    minHeight: 64,
+  },
+  actionIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.25)',
     justifyContent: 'center',
-    minHeight: 100,
+    alignItems: 'center',
+  },
+  actionTextWrap: {
+    flex: 1,
+    marginLeft: 10,
   },
   actionTitle: {
     color: '#FFF',
-    fontSize: 12,
-    fontWeight: '600',
-    marginTop: 8,
-    textAlign: 'center',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  actionSubtitle: {
+    color: 'rgba(255,255,255,0.75)',
+    fontSize: 10,
+    marginTop: 1,
   },
   actionArrow: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    opacity: 0.7,
+    opacity: 0.6,
+    marginLeft: 2,
   },
   privacyBadge: {
     flexDirection: 'row',
