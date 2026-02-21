@@ -530,22 +530,22 @@ export default function OverallHealthScreen() {
                 <View style={styles.scoreBreakdown}>
                   <View style={styles.scoreItem}>
                     <Moon size={14} color="#9575CD" />
-                    <Text style={styles.scoreItemLabel}>{t.sleepScore}</Text>
+                    <Text style={styles.scoreItemLabel} numberOfLines={1}>{t.sleepScore}</Text>
                     <Text style={styles.scoreItemValue}>{healthScore.breakdown?.sleep || 0}</Text>
                   </View>
                   <View style={styles.scoreItem}>
                     <Brain size={14} color="#EF5350" />
-                    <Text style={styles.scoreItemLabel}>{t.stressScore}</Text>
+                    <Text style={styles.scoreItemLabel} numberOfLines={1}>{t.stressScore}</Text>
                     <Text style={styles.scoreItemValue}>{healthScore.breakdown?.stress || 0}</Text>
                   </View>
                   <View style={styles.scoreItem}>
                     <Dumbbell size={14} color="#26A69A" />
-                    <Text style={styles.scoreItemLabel}>{t.exerciseScore}</Text>
+                    <Text style={styles.scoreItemLabel} numberOfLines={1}>{t.exerciseScore}</Text>
                     <Text style={styles.scoreItemValue}>{healthScore.breakdown?.exercise || 0}</Text>
                   </View>
                   <View style={styles.scoreItem}>
                     <TrendingUp size={14} color="#42A5F5" />
-                    <Text style={styles.scoreItemLabel}>{t.bmiScore}</Text>
+                    <Text style={styles.scoreItemLabel} numberOfLines={1}>{t.bmiScore}</Text>
                     <Text style={styles.scoreItemValue}>{healthScore.breakdown?.bmi || 0}</Text>
                   </View>
                 </View>
@@ -571,7 +571,7 @@ export default function OverallHealthScreen() {
               {getRiskIcon(riskResult.risk_level, 32)}
               <View style={styles.riskInfo}>
                 <Text style={styles.riskLevelLabel}>{t.riskLevel}</Text>
-                <Text style={[styles.riskLevelValue, { color: getRiskColor(riskResult.risk_level) }]}>
+                <Text style={[styles.riskLevelValue, { color: getRiskColor(riskResult.risk_level) }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
                   {getRiskLabel(riskResult.risk_level)}
                 </Text>
               </View>
@@ -579,7 +579,7 @@ export default function OverallHealthScreen() {
                 <Text style={styles.confidenceText}>
                   {Math.round((riskResult.confidence || 0) * 100)}%
                 </Text>
-                <Text style={styles.confidenceLabel}>{t.confidence}</Text>
+                <Text style={styles.confidenceLabel} numberOfLines={1}>{t.confidence}</Text>
               </View>
             </View>
 
@@ -621,14 +621,14 @@ export default function OverallHealthScreen() {
               <ActivityIndicator color="#FFF" size="small" />
             ) : (
               <>
-                <Activity size={18} color="#FFF" />
-                <Text style={styles.actionBtnPrimaryText}>{t.runAssessment}</Text>
+                <Activity size={16} color="#FFF" />
+                <Text style={styles.actionBtnPrimaryText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{t.runAssessment}</Text>
               </>
             )}
           </TouchableOpacity>
           <TouchableOpacity style={styles.actionBtnSecondary} onPress={() => router.push('/symptoms')}>
-            <Clipboard size={18} color="#C2185B" />
-            <Text style={styles.actionBtnSecondaryText}>{t.fullCheckup}</Text>
+            <Clipboard size={16} color="#C2185B" />
+            <Text style={styles.actionBtnSecondaryText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{t.fullCheckup}</Text>
           </TouchableOpacity>
         </View>
 
@@ -654,14 +654,14 @@ export default function OverallHealthScreen() {
               <View key={idx} style={styles.historyCard}>
                 <View style={styles.historyHeader}>
                   <View style={styles.historyDateRow}>
-                    <Clock size={14} color="#999" />
-                    <Text style={styles.historyDate}>
+                    <Clock size={12} color="#999" />
+                    <Text style={styles.historyDate} numberOfLines={1}>
                       {formatRelativeDate(entry.date, t)} {'\u2022'} {new Date(entry.date).toLocaleDateString()}
                     </Text>
                   </View>
                   <View style={[styles.historyRiskBadge, { backgroundColor: getRiskColor(entry.riskLevel) + '18' }]}>
-                    {getRiskIcon(entry.riskLevel, 14)}
-                    <Text style={[styles.historyRiskText, { color: getRiskColor(entry.riskLevel) }]}>
+                    {getRiskIcon(entry.riskLevel, 12)}
+                    <Text style={[styles.historyRiskText, { color: getRiskColor(entry.riskLevel) }]} numberOfLines={1}>
                       {getRiskLabel(entry.riskLevel)}
                     </Text>
                   </View>
@@ -960,16 +960,18 @@ const styles = StyleSheet.create({
   },
   scoreBreakdown: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'space-around',
   },
   scoreItem: {
     alignItems: 'center',
     flex: 1,
+    paddingHorizontal: 2,
   },
   scoreItemLabel: {
-    fontSize: 11,
+    fontSize: 10,
     color: '#999',
     marginTop: 4,
+    textAlign: 'center',
   },
   scoreItemValue: {
     fontSize: 16,
@@ -997,9 +999,10 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
     color: '#333',
+    flexShrink: 1,
   },
   riskCard: {
     backgroundColor: '#FFF',
@@ -1029,8 +1032,9 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   riskLevelValue: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '800',
+    flexShrink: 1,
   },
   confidenceBadge: {
     alignItems: 'center',
@@ -1110,13 +1114,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#E91E63',
     borderRadius: 12,
-    paddingVertical: 14,
-    gap: 8,
+    paddingVertical: 13,
+    paddingHorizontal: 8,
+    gap: 6,
+    overflow: 'hidden',
   },
   actionBtnPrimaryText: {
     color: '#FFF',
     fontWeight: '700',
-    fontSize: 14,
+    fontSize: 13,
+    flexShrink: 1,
   },
   actionBtnSecondary: {
     flex: 1,
@@ -1125,15 +1132,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#FFF',
     borderRadius: 12,
-    paddingVertical: 14,
+    paddingVertical: 13,
+    paddingHorizontal: 8,
     borderWidth: 1.5,
     borderColor: '#E91E63',
-    gap: 8,
+    gap: 6,
+    overflow: 'hidden',
   },
   actionBtnSecondaryText: {
     color: '#C2185B',
     fontWeight: '700',
-    fontSize: 14,
+    fontSize: 13,
+    flexShrink: 1,
   },
   countBadge: {
     backgroundColor: '#E91E63',
@@ -1170,22 +1180,26 @@ const styles = StyleSheet.create({
   historyDateRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: 4,
+    flexShrink: 1,
+    marginRight: 8,
   },
   historyDate: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#999',
+    flexShrink: 1,
   },
   historyRiskBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 3,
     borderRadius: 8,
     paddingVertical: 3,
-    paddingHorizontal: 8,
+    paddingHorizontal: 6,
+    flexShrink: 0,
   },
   historyRiskText: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '700',
   },
   symptomChipRow: {
@@ -1395,10 +1409,11 @@ const styles = StyleSheet.create({
   syncRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexWrap: 'wrap',
     gap: 6,
   },
   syncTitle: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
     color: '#555',
   },
