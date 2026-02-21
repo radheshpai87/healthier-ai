@@ -21,6 +21,53 @@ export const translations = {
     logMood: 'How are you feeling?',
     removePeriodLog: 'Remove period log',
     close: 'Close',
+    save: 'Save',
+
+    // Flow Intensity
+    flowIntensity: 'Flow Intensity',
+    flowLight: 'Light',
+    flowMedium: 'Medium',
+    flowHeavy: 'Heavy',
+    flowSpotting: 'Spotting',
+    selectFlow: 'How heavy is your flow?',
+    noPeriod: 'No Period',
+
+    // Calendar Symptoms
+    calSymptoms: 'Symptoms',
+    cramps: 'Cramps',
+    headache: 'Headache',
+    backPain: 'Back Pain',
+    bloating: 'Bloating',
+    breastTenderness: 'Breast Tenderness',
+    acne: 'Acne',
+    nausea: 'Nausea',
+    calFatigue: 'Fatigue',
+    insomnia: 'Insomnia',
+    cravings: 'Cravings',
+
+    // Cycle Phases
+    phaseMenustrual: 'Period',
+    phasePredicted: 'Predicted Period',
+    phaseFertile: 'Fertile Window',
+    phaseOvulation: 'Ovulation',
+    phaseRegular: 'Regular',
+    today: 'Today',
+
+    // Legend & Summary
+    legend: 'Color Guide',
+    daySummary: 'Day Summary',
+    noDataForDay: 'No data logged for this day',
+    loggedData: 'Logged Data',
+    flow: 'Flow',
+    mood: 'Mood',
+    tapToLog: 'Tap a date to log your day',
+    predictedNextPeriod: 'Predicted Next Period',
+    fertileWindow: 'Fertile Window',
+    currentPhase: 'Current Phase',
+    daysUntilPeriod: 'days until next period',
+    periodDay: 'Period Day',
+    ofCycle: 'of cycle',
+    dayOfCycle: 'Day',
     
     // Prediction
     nextPeriod: 'Next Period Prediction',
@@ -165,6 +212,53 @@ export const translations = {
     logMood: 'आप कैसा महसूस कर रही हैं?',
     removePeriodLog: 'पीरियड लॉग हटाएं',
     close: 'बंद करें',
+    save: 'सहेजें',
+
+    // Flow Intensity
+    flowIntensity: 'रक्तस्राव की तीव्रता',
+    flowLight: 'हल्का',
+    flowMedium: 'मध्यम',
+    flowHeavy: 'भारी',
+    flowSpotting: 'स्पॉटिंग',
+    selectFlow: 'आपका रक्तस्राव कितना है?',
+    noPeriod: 'पीरियड नहीं',
+
+    // Calendar Symptoms
+    calSymptoms: 'लक्षण',
+    cramps: 'ऐंठन',
+    headache: 'सिरदर्द',
+    backPain: 'पीठ दर्द',
+    bloating: 'पेट फूलना',
+    breastTenderness: 'स्तन दर्द',
+    acne: 'मुंहासे',
+    nausea: 'जी मिचलाना',
+    calFatigue: 'थकान',
+    insomnia: 'अनिद्रा',
+    cravings: 'तीव्र इच्छा',
+
+    // Cycle Phases
+    phaseMenustrual: 'पीरियड',
+    phasePredicted: 'अनुमानित पीरियड',
+    phaseFertile: 'उपजाऊ समय',
+    phaseOvulation: 'ओव्यूलेशन',
+    phaseRegular: 'सामान्य',
+    today: 'आज',
+
+    // Legend & Summary
+    legend: 'रंग गाइड',
+    daySummary: 'दिन का सारांश',
+    noDataForDay: 'इस दिन का कोई डेटा नहीं',
+    loggedData: 'लॉग किया गया डेटा',
+    flow: 'रक्तस्राव',
+    mood: 'मूड',
+    tapToLog: 'अपना दिन लॉग करने के लिए तारीख दबाएं',
+    predictedNextPeriod: 'अनुमानित अगला पीरियड',
+    fertileWindow: 'उपजाऊ समय',
+    currentPhase: 'वर्तमान चरण',
+    daysUntilPeriod: 'दिन बाकी अगले पीरियड में',
+    periodDay: 'पीरियड दिन',
+    ofCycle: 'चक्र का',
+    dayOfCycle: 'दिन',
     
     // Prediction
     nextPeriod: 'अगला पीरियड अनुमान',

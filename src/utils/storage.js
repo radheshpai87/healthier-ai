@@ -7,6 +7,8 @@ const KEYS = {
   MOOD_DATA:   'aurahealth_mood_data',
   LANGUAGE:    'aurahealth_language',
   SYMPTOMS:    'aurahealth_symptoms',
+  FLOW_DATA:   'aurahealth_flow_data',
+  DAILY_LOGS:  'aurahealth_daily_logs',
 };
 
 /** Shorthand: scope a KEYS value to the current user. */
@@ -164,6 +166,99 @@ export async function getSymptoms() {
 }
 
 /**
+ * Save flow intensity for a specific date
+ * @param {string} date - Date string (YYYY-MM-DD format)
+ * @param {string} flow - Flow intensity ('light', 'medium', 'heavy', 'spotting')
+ */
+export async function saveFlowData(date, flow) {
+  try {
+    const existingData = await getFlowData() || {};
+    existingData[date] = flow;
+    await AsyncStorage.setItem(sk(KEYS.FLOW_DATA), JSON.stringify(existingData));
+    return true;
+  } catch (error) {
+    console.error('Error saving flow data:', error);
+    return false;
+  }
+}
+
+/**
+ * Get all flow intensity data from storage
+ * @returns {Promise<Object|null>} - Object with date keys and flow values
+ */
+export async function getFlowData() {
+  try {
+    const data = await AsyncStorage.getItem(sk(KEYS.FLOW_DATA));
+    return data ? JSON.parse(data) : null;
+  } catch (error) {
+    console.error('Error getting flow data:', error);
+    return null;
+  }
+}
+
+/**
+ * Remove flow data for a specific date
+ * @param {string} date - Date string (YYYY-MM-DD format)
+ */
+export async function removeFlowData(date) {
+  try {
+    const existingData = await getFlowData() || {};
+    delete existingData[date];
+    await AsyncStorage.setItem(sk(KEYS.FLOW_DATA), JSON.stringify(existingData));
+    return true;
+  } catch (error) {
+    console.error('Error removing flow data:', error);
+    return false;
+  }
+}
+
+/**
+ * Save a comprehensive daily log for a date
+ * @param {string} date - Date string (YYYY-MM-DD format)
+ * @param {Object} log - { flow, mood, symptoms[], notes }
+ */
+export async function saveDailyLog(date, log) {
+  try {
+    const existingData = await getDailyLogs() || {};
+    existingData[date] = { ...((existingData[date]) || {}), ...log, updatedAt: new Date().toISOString() };
+    await AsyncStorage.setItem(sk(KEYS.DAILY_LOGS), JSON.stringify(existingData));
+    return true;
+  } catch (error) {
+    console.error('Error saving daily log:', error);
+    return false;
+  }
+}
+
+/**
+ * Get all daily logs from storage
+ * @returns {Promise<Object|null>} - Object with date keys and log objects
+ */
+export async function getDailyLogs() {
+  try {
+    const data = await AsyncStorage.getItem(sk(KEYS.DAILY_LOGS));
+    return data ? JSON.parse(data) : null;
+  } catch (error) {
+    console.error('Error getting daily logs:', error);
+    return null;
+  }
+}
+
+/**
+ * Get daily log for a specific date
+ * @param {string} date - Date string (YYYY-MM-DD format)
+ * @returns {Promise<Object|null>} - Log object or null
+ */
+export async function getDailyLog(date) {
+  try {
+    const allLogs = await getDailyLogs();
+    return allLogs ? allLogs[date] || null : null;
+  } catch (error) {
+    console.error('Error getting daily log:', error);
+    return null;
+  }
+}
+
+/**
  * Clear all stored data (for privacy/reset purposes)
  */
 export async function clearAllData() {
@@ -172,6 +267,8 @@ export async function clearAllData() {
       AsyncStorage.removeItem(sk(KEYS.PERIOD_DATA)),
       AsyncStorage.removeItem(sk(KEYS.MOOD_DATA)),
       AsyncStorage.removeItem(sk(KEYS.SYMPTOMS)),
+      AsyncStorage.removeItem(sk(KEYS.FLOW_DATA)),
+      AsyncStorage.removeItem(sk(KEYS.DAILY_LOGS)),
     ]);
     return true;
   } catch (error) {
