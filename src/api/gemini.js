@@ -11,7 +11,7 @@ const genAI = new GoogleGenerativeAI(API_KEY);
 
 // Models in priority order — fast/cheap first, more capable as fallback
 // Using confirmed available models only
-const MODELS = ['gemini-2.5-flash-lite', 'gemini-2.5-pro', 'gemini-3-flash'];
+const MODELS = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'];
 
 /**
  * Strip common Markdown syntax so plain <Text> renders cleanly.

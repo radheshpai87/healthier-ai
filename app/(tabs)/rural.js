@@ -333,6 +333,8 @@ export default function RuralIVRScreen() {
   // ── Option 1: Cycle prediction ──────────────────────
   useEffect(() => {
     if (screen !== S.CYCLE) return;
+    if (cycle.isLoading) return; // wait for data to load
+
     const date = cycle.nextPeriodDate || (hi ? '\u0905\u091C\u094D\u091E\u093E\u0924' : 'Unknown');
     const days =
       cycle.daysUntilNextPeriod != null
@@ -345,7 +347,7 @@ export default function RuralIVRScreen() {
       : `\uD83D\uDCC5 Next period: ${date}\n\u23F3 ${days}\n\uD83D\uDD04 Average: ${len}\n\n0: Back`;
     log('IVR', msg);
     speak(hi ? `\u0905\u0917\u0932\u0940 \u092E\u093E\u0939\u0935\u093E\u0930\u0940 ${date}, ${days}, \u0914\u0938\u0924 ${len}` : `Next period ${date}, ${days}, average ${len}`);
-  }, [screen]);
+  }, [screen, cycle.isLoading, cycle.nextPeriodDate, cycle.daysUntilNextPeriod, cycle.cycleLength]);
 
   // ── Option 2: AI advice ─────────────────────────────
   const fetchAdvice = async () => {

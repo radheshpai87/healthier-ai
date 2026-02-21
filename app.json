@@ -7,7 +7,7 @@
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "extra": {
-      "geminiApiKey": "",
+      "geminiApiKey": "AIzaSyBfBxKiR0kOrklJ6cF9vJbfAPm7pwrcY64",
       "backendUrl": "http://10.1.161.140:3000/api"
     },
     "splash": {
