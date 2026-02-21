@@ -222,8 +222,8 @@ export default function HomeScreen() {
     },
     {
       id: 'risk',
-      title: language === 'hi' ? 'दैनिक स्वास्थ्य' : 'Daily Health',
-      subtitle: language === 'hi' ? 'तनाव, नींद, व्यायाम' : 'Stress, sleep, exercise',
+      title: language === 'hi' ? 'समग्र स्वास्थ्य' : 'Overall Health',
+      subtitle: language === 'hi' ? 'स्कोर, लक्षण, AI' : 'Score, symptoms, AI',
       icon: <TrendingUp size={24} color="#FFF" />,
       color: '#2196F3',
       onPress: () => router.push('/risk'),
