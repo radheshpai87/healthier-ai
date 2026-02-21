@@ -22,6 +22,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { Heart } from 'lucide-react-native';
 import { LanguageContext } from '../context/LanguageContext';
 import { getUsers, loginWithPin, logout, deleteUserById } from '../services/authService';
 import { useAuth } from '../context/AuthContext';
@@ -239,8 +240,17 @@ export default function UserLoginScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.logo}>AH</Text>
-        <Text style={styles.title}>{txt.title}</Text>
+        {/* Logo mark */}
+        <View style={styles.logoMark}>
+          <View style={styles.logoCircle}>
+            <Heart size={32} color="#fff" fill="#fff" />
+          </View>
+        </View>
+        {/* Brand name */}
+        <Text style={styles.title}>
+          <Text style={styles.titleAccent}>Aura</Text>
+          <Text style={styles.titleMain}>Health</Text>
+        </Text>
         <Text style={styles.subtitle}>{txt.subtitle}</Text>
       </View>
 
@@ -307,30 +317,47 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    paddingTop: 32,
-    paddingBottom: 24,
+    paddingTop: 36,
+    paddingBottom: 28,
   },
-  logo: {
-    fontSize: 36,
-    fontWeight: '800',
-    color: '#C2185B',
-    letterSpacing: -1,
-    marginBottom: 8,
+  logoMark: {
+    marginBottom: 16,
+  },
+  logoCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: '#C2185B',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#C2185B',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 8,
   },
   title: {
-    fontSize: 28,
+    fontSize: 30,
     fontWeight: '800',
+    marginBottom: 6,
+    letterSpacing: -0.5,
+  },
+  titleAccent: {
     color: '#C2185B',
-    marginBottom: 4,
+  },
+  titleMain: {
+    color: '#222',
   },
   subtitle: {
-    fontSize: 15,
-    color: '#888',
+    fontSize: 14,
+    color: '#999',
+    letterSpacing: 0.2,
   },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',
+    paddingTop: 14,
     paddingBottom: 24,
     gap: 16,
   },

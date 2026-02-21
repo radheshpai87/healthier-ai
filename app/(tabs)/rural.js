@@ -683,7 +683,7 @@ export default function RuralIVRScreen() {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.idleContainer}>
-          <Phone size={56} color="#0f0" />
+          <Phone size={56} color="#111111" />
           <Text style={styles.idleTitle}>AuraHealth IVR</Text>
           <Text style={styles.idleSub}>
             {hi ? 'ग्रामीण स्वास्थ्य सेवा' : 'Rural Health Service'}
@@ -717,7 +717,7 @@ export default function RuralIVRScreen() {
 
       {/* ── Header ──────────────────────────────── */}
       <View style={styles.header}>
-        <Phone size={18} color="#0f0" />
+        <Phone size={18} color="#111111" />
         <Text style={styles.headerTitle}>
           {USSD_CODE} — {hi ? 'IVR सक्रिय' : 'IVR Active'}
         </Text>
@@ -726,7 +726,7 @@ export default function RuralIVRScreen() {
           style={styles.ttsToggle}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          {ttsOn ? <Volume2 size={18} color="#0f0" /> : <VolumeX size={18} color="#555" />}
+          {ttsOn ? <Volume2 size={18} color="#111111" /> : <VolumeX size={18} color="#aaaaaa" />}
         </TouchableOpacity>
       </View>
 
@@ -743,7 +743,7 @@ export default function RuralIVRScreen() {
           const isAI   = entry.sender === 'AI';
           const isREF  = entry.sender === 'REF';
           const isERR  = entry.sender === 'ERR';
-          let tagColor = '#0f0';
+          let tagColor = '#111111';
           if (isUser) tagColor = '#0af';
           else if (isSOS)  tagColor = '#f44';
           else if (isAI)   tagColor = '#ff0';
@@ -765,14 +765,14 @@ export default function RuralIVRScreen() {
 
         {loading && (
           <View style={styles.logEntry}>
-            <Text style={[styles.logTag, { color: '#ff0' }]}>SYS</Text>
-            <ActivityIndicator color="#0f0" size="small" />
+            <Text style={[styles.logTag, { color: '#888888' }]}>SYS</Text>
+            <ActivityIndicator color="#111111" size="small" />
           </View>
         )}
 
         {screen === S.TRIAGE_RESULT && triageResult && !loading && (
           <View style={styles.logEntry}>
-            <Text style={[styles.logTag, { color: '#0f0' }]}>IVR</Text>
+            <Text style={[styles.logTag, { color: '#111111' }]}>IVR</Text>
             <Text style={styles.logText}>
               {hi ? '1: रेफ़रल कार्ड\n2: सलाह सुनें\n0: वापस'
                   : '1: Referral card\n2: Listen to advice\n0: Back'}
@@ -781,7 +781,7 @@ export default function RuralIVRScreen() {
         )}
         {screen === S.TIPS && !loading && (
           <View style={styles.logEntry}>
-            <Text style={[styles.logTag, { color: '#0f0' }]}>IVR</Text>
+            <Text style={[styles.logTag, { color: '#111111' }]}>IVR</Text>
             <Text style={styles.logText}>
               {hi ? '1: अगला  2: दोहराएं  0: वापस' : '1: Next  2: Repeat  0: Back'}
             </Text>
@@ -789,7 +789,7 @@ export default function RuralIVRScreen() {
         )}
         {screen === S.ADVICE_RESULT && adviceText && !loading && (
           <View style={styles.logEntry}>
-            <Text style={[styles.logTag, { color: '#0f0' }]}>IVR</Text>
+            <Text style={[styles.logTag, { color: '#111111' }]}>IVR</Text>
             <Text style={styles.logText}>
               {hi ? '2: दोहराएं  0: वापस' : '2: Repeat  0: Back'}
             </Text>
@@ -821,7 +821,7 @@ export default function RuralIVRScreen() {
                     <Text style={[
                       styles.padKeyText,
                       isHash && { color: '#fff' },
-                      isStar && { color: '#000' },
+                      isStar && { color: '#fff' },
                     ]}>
                       {k}
                     </Text>
@@ -837,12 +837,12 @@ export default function RuralIVRScreen() {
 }
 
 // ════════════════════════════════════════════════════════
-// Styles — black/green terminal + phone dial-pad
+// Styles — white/black clean design
 // ════════════════════════════════════════════════════════
 const PAD_KEY_SIZE = Math.min((SCREEN_W - 80) / 3, 72);
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#0a0a0a' },
+  safe: { flex: 1, backgroundColor: '#ffffff' },
 
   /* ── Idle (pre-dial) ──────────────────────────── */
   idleContainer: {
@@ -852,20 +852,20 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   idleTitle: {
-    color: '#0f0',
+    color: '#111111',
     fontSize: 30,
     fontWeight: 'bold',
     fontFamily: 'monospace',
     marginTop: 16,
   },
   idleSub: {
-    color: '#0a0',
+    color: '#666666',
     fontSize: 14,
     fontFamily: 'monospace',
     marginTop: 4,
   },
   ussdCode: {
-    color: '#ff0',
+    color: '#111111',
     fontSize: 36,
     fontWeight: 'bold',
     fontFamily: 'monospace',
@@ -875,26 +875,26 @@ const styles = StyleSheet.create({
   callBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0c0',
+    backgroundColor: '#111111',
     paddingVertical: 16,
     paddingHorizontal: 40,
     borderRadius: 40,
     marginTop: 32,
     elevation: 6,
-    shadowColor: '#0f0',
+    shadowColor: '#000000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
+    shadowOpacity: 0.2,
     shadowRadius: 8,
   },
   callBtnText: {
-    color: '#fff',
+    color: '#ffffff',
     fontSize: 20,
     fontWeight: 'bold',
     fontFamily: 'monospace',
     marginLeft: 12,
   },
   idleHint: {
-    color: '#555',
+    color: '#aaaaaa',
     fontSize: 12,
     fontFamily: 'monospace',
     marginTop: 20,
@@ -907,13 +907,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 14,
     paddingVertical: 10,
-    backgroundColor: '#111',
+    backgroundColor: '#f2f2f2',
     borderBottomWidth: 1,
-    borderBottomColor: '#0f02',
+    borderBottomColor: '#e0e0e0',
   },
   headerTitle: {
     flex: 1,
-    color: '#0f0',
+    color: '#111111',
     fontSize: 15,
     fontWeight: 'bold',
     fontFamily: 'monospace',
@@ -939,7 +939,7 @@ const styles = StyleSheet.create({
   },
   logText: {
     flex: 1,
-    color: '#0d0',
+    color: '#222222',
     fontFamily: 'monospace',
     fontSize: 14,
     lineHeight: 21,
@@ -947,11 +947,11 @@ const styles = StyleSheet.create({
 
   /* ── Dial pad ─────────────────────────────────── */
   padContainer: {
-    backgroundColor: '#111',
+    backgroundColor: '#f2f2f2',
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderTopWidth: 1,
-    borderTopColor: '#0f02',
+    borderTopColor: '#e0e0e0',
   },
   padRow: {
     flexDirection: 'row',
@@ -962,23 +962,23 @@ const styles = StyleSheet.create({
     width: PAD_KEY_SIZE,
     height: PAD_KEY_SIZE,
     borderRadius: PAD_KEY_SIZE / 2,
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#ffffff',
     alignItems: 'center',
     justifyContent: 'center',
     marginHorizontal: 10,
     borderWidth: 1,
-    borderColor: '#0f03',
+    borderColor: '#cccccc',
   },
   padKeyHangup: {
     backgroundColor: '#c00',
     borderColor: '#f005',
   },
   padKeyStar: {
-    backgroundColor: '#0c0',
-    borderColor: '#0f05',
+    backgroundColor: '#111111',
+    borderColor: '#33333355',
   },
   padKeyText: {
-    color: '#0f0',
+    color: '#111111',
     fontSize: 24,
     fontWeight: 'bold',
     fontFamily: 'monospace',

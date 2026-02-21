@@ -28,7 +28,6 @@ import {
   AlertCircle,
   CheckCircle,
   Clock,
-  Lock,
   User,
 } from 'lucide-react-native';
 import LanguageSwitch from '../../src/components/LanguageSwitch';
@@ -249,7 +248,7 @@ export default function HomeScreen() {
           <ActivityIndicator size="large" color="#FFB6C1" />
         </View>
       ) : (
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         {/* Header */}
         <View style={styles.header}>
           <View>
@@ -261,48 +260,37 @@ export default function HomeScreen() {
           <LanguageSwitch />
         </View>
 
-        {/* PIN Protected Badge */}
-        {user && (
-          <View style={styles.pinBadge}>
-            <Lock size={14} color="#7B1FA2" />
-            <Text style={styles.pinBadgeText}>
-              {language === 'hi'
-                ? `PIN सुरक्षित • ${user.name || 'उपयोगकर्ता'}`
-                : `PIN Protected • ${user.name || 'User'}`
-              }
-            </Text>
-          </View>
-        )}
+
 
         {/* Hero Card */}
         <View style={styles.heroCard}>
           <View style={styles.heroTop}>
-            <Heart size={32} color="#FFB6C1" fill="#FFB6C1" />
+            <Heart size={28} color="#E91E63" fill="#E91E63" />
             <Text style={styles.heroTitle}>
               {language === 'hi' ? 'आपका स्वास्थ्य साथी' : 'Your Health Companion'}
             </Text>
           </View>
-          
+
           {cycleDay ? (
             <View style={styles.cycleInfo}>
-              {/* Days left badge - top left */}
               {nextPeriodDays !== null && nextPeriodDays > 0 && (
                 <View style={styles.daysLeftBadge}>
-                  <Clock size={14} color="#E91E63" />
+                  <Clock size={13} color="#E91E63" />
                   <Text style={styles.daysLeftText}>
                     {language === 'hi'
                       ? `${nextPeriodDays} दिन बाकी`
-                      : `${nextPeriodDays} days left`
-                    }
+                      : `${nextPeriodDays} days left`}
                   </Text>
                 </View>
               )}
 
-              {/* Month and Date display */}
               {nextPeriodDate ? (
                 <View style={styles.cycleDayBox}>
                   <Text style={styles.cycleDateMonth}>
-                    {nextPeriodDate.toLocaleString(language === 'hi' ? 'hi-IN' : 'en-US', { month: 'long' })}
+                    {nextPeriodDate.toLocaleString(
+                      language === 'hi' ? 'hi-IN' : 'en-US',
+                      { month: 'long' }
+                    )}
                   </Text>
                   <Text style={styles.cycleDayNumber}>
                     {nextPeriodDate.getDate()}
@@ -318,7 +306,7 @@ export default function HomeScreen() {
                   </Text>
                 </View>
               )}
-              
+
               {phase && (
                 <View style={styles.phaseInfo}>
                   <View style={[styles.phaseBadge, { backgroundColor: phase.color + '20' }]}>
@@ -332,16 +320,16 @@ export default function HomeScreen() {
           ) : (
             <View style={styles.noCycleInfo}>
               <Text style={styles.noCycleText}>
-                {language === 'hi' 
+                {language === 'hi'
                   ? 'अपना पहला पीरियड लॉग करें'
-                  : 'Log your first period'
-                }
+                  : 'Log your first period'}
               </Text>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.startButton}
                 onPress={() => router.push('/calendar')}
+                activeOpacity={0.85}
               >
-                <Calendar size={20} color="#FFF" />
+                <Calendar size={18} color="#FFF" />
                 <Text style={styles.startButtonText}>
                   {language === 'hi' ? 'शुरू करें' : 'Get Started'}
                 </Text>
@@ -409,10 +397,14 @@ export default function HomeScreen() {
               key={action.id}
               style={[styles.actionCard, { backgroundColor: action.color }]}
               onPress={action.onPress}
+              activeOpacity={0.85}
             >
-              {action.icon}
+              <View style={styles.actionIconWrap}>{action.icon}</View>
               <Text style={styles.actionTitle}>{action.title}</Text>
-              <ChevronRight size={16} color="#FFF" style={styles.actionArrow} />
+              {action.subtitle ? (
+                <Text style={styles.actionSubtitle}>{action.subtitle}</Text>
+              ) : null}
+              <ChevronRight size={14} color="#FFF" style={styles.actionArrow} />
             </TouchableOpacity>
           ))}
         </View>
@@ -531,21 +523,21 @@ const styles = StyleSheet.create({
     padding: 20,
     borderRadius: 20,
     elevation: 3,
-    shadowColor: '#FFB6C1',
+    shadowColor: '#E91E63',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
+    shadowOpacity: 0.1,
     shadowRadius: 8,
   },
   heroTop: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 15,
+    marginBottom: 16,
+    gap: 10,
   },
   heroTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-    marginLeft: 10,
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#222',
   },
   cycleInfo: {
     alignItems: 'center',
@@ -557,81 +549,84 @@ const styles = StyleSheet.create({
     backgroundColor: '#FCE4EC',
     paddingHorizontal: 10,
     paddingVertical: 5,
-    borderRadius: 12,
+    borderRadius: 20,
     gap: 5,
-    marginBottom: 10,
+    marginBottom: 12,
   },
   daysLeftText: {
-    fontSize: 13,
-    fontWeight: '600',
+    fontSize: 12,
+    fontWeight: '700',
     color: '#E91E63',
   },
   cycleDayBox: {
     alignItems: 'center',
-    marginBottom: 15,
+    marginBottom: 16,
   },
   cycleDateMonth: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
     color: '#E91E63',
     textTransform: 'capitalize',
     marginBottom: 2,
   },
   cycleDayNumber: {
-    fontSize: 64,
-    fontWeight: 'bold',
-    color: '#FFB6C1',
+    fontSize: 68,
+    fontWeight: '800',
+    color: '#E91E63',
+    lineHeight: 72,
   },
   cycleDayLabel: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: -5,
+    fontSize: 13,
+    color: '#999',
+    marginTop: 2,
+    letterSpacing: 0.3,
   },
   phaseInfo: {
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 4,
   },
   phaseBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
     borderRadius: 20,
     gap: 6,
+    marginBottom: 8,
   },
   phaseText: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   phaseTip: {
     fontSize: 13,
     color: '#666',
-    marginTop: 8,
     textAlign: 'center',
+    lineHeight: 19,
   },
-
   noCycleInfo: {
     alignItems: 'center',
-    paddingVertical: 10,
+    paddingVertical: 12,
   },
   noCycleText: {
     fontSize: 15,
-    color: '#666',
-    marginBottom: 15,
+    color: '#888',
+    marginBottom: 16,
+    textAlign: 'center',
   },
   startButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFB6C1',
-    paddingHorizontal: 20,
+    backgroundColor: '#E91E63',
+    paddingHorizontal: 22,
     paddingVertical: 12,
     borderRadius: 25,
     gap: 8,
   },
   startButtonText: {
     color: '#FFF',
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '700',
   },
   profilePromptCard: {
     marginHorizontal: 20,
@@ -701,31 +696,52 @@ const styles = StyleSheet.create({
     marginTop: 20,
     marginBottom: 12,
   },
+  scrollContent: {
+    paddingBottom: 32,
+  },
   quickActions: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     paddingHorizontal: 20,
-    gap: 10,
+    gap: 12,
   },
   actionCard: {
-    flex: 1,
-    padding: 15,
-    borderRadius: 15,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 100,
+    width: (width - 52) / 2,
+    padding: 16,
+    borderRadius: 18,
+    alignItems: 'flex-start',
+    justifyContent: 'flex-end',
+    minHeight: 112,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+  },
+  actionIconWrap: {
+    position: 'absolute',
+    top: 14,
+    left: 14,
+    opacity: 0.95,
   },
   actionTitle: {
     color: '#FFF',
-    fontSize: 12,
-    fontWeight: '600',
-    marginTop: 8,
-    textAlign: 'center',
+    fontSize: 13,
+    fontWeight: '700',
+    textAlign: 'left',
+    marginBottom: 2,
+  },
+  actionSubtitle: {
+    color: 'rgba(255,255,255,0.75)',
+    fontSize: 11,
+    fontWeight: '400',
+    textAlign: 'left',
   },
   actionArrow: {
     position: 'absolute',
-    top: 10,
-    right: 10,
-    opacity: 0.7,
+    top: 12,
+    right: 12,
+    opacity: 0.6,
   },
   privacyBadge: {
     flexDirection: 'row',
