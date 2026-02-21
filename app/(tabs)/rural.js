@@ -465,11 +465,8 @@ export default function RuralIVRScreen() {
       } catch (_) {
         try { location = await getSavedLocation(); } catch (__) {}
       }
-      const { facilities: sortedFacilities, hasGPS } = getFacilitiesWithDistance(userCoords);
+      const { facilities: sortedFacilities } = getFacilitiesWithDistance(userCoords);
       const facility = findNearestFacility(riskResult.level, sortedFacilities);
-      const gpsNote = hasGPS
-        ? (hi ? `📍 GPS से गणना` : `📍 GPS-calculated`)
-        : (hi ? `📍 अनुमानित दूरी` : `📍 Estimated distance`);
 
       const symptomNames = getActiveSymptomLabels(symptoms, emergencyFlags, language).join(', ');
 
@@ -515,7 +512,7 @@ export default function RuralIVRScreen() {
 
       log('IVR', `${levelLabel}${confText ? ` (${confText})` : ''} [${sourceText}]\n\n${hi ? '\u0932\u0915\u094D\u0937\u0923' : 'Symptoms'}: ${symptomNames}`);
       log('AI', aiAdvice);
-      log('IVR', `\uD83D\uDCCD ${hi ? '\u0930\u0947\u092B\u093C\u0930' : 'Refer'}: ${result.facility.name} (${result.facility.dist} km) \u2014 ${result.facility.phone}\n${gpsNote}`);
+      log('IVR', `\uD83D\uDCCD ${hi ? '\u0930\u0947\u092B\u093C\u0930' : 'Refer'}: ${result.facility.name} \u2014 ${result.facility.phone}`);
       speak(riskResult.advice);
 
       // If HIGH risk, trigger emergency SMS + call prompt
@@ -640,15 +637,12 @@ export default function RuralIVRScreen() {
         try { locationName = await getLocationDisplayName() || ''; } catch (__) {}
       }
 
-      const { facilities, hasGPS } = getFacilitiesWithDistance(userCoords);
-      const gpsLabel = hasGPS
-        ? (hi ? '📍 GPS से दूरी' : '📍 GPS distance')
-        : (hi ? '📍 अनुमानित दूरी' : '📍 Estimated distance');
+      const { facilities } = getFacilitiesWithDistance(userCoords);
 
       const lines = facilities.map(
-        (f, i) => `${i + 1}. ${f.name}\n   ${f.type} \u2014 ${f.dist} km \u2014 \u260E ${f.phone}`,
+        (f, i) => `${i + 1}. ${f.name}\n   ${f.type} \u2014 \u260E ${f.phone}`,
       ).join('\n');
-      const header = locationName ? `\uD83D\uDCCD ${locationName}\n${gpsLabel}\n\n` : `${gpsLabel}\n\n`;
+      const header = locationName ? `\uD83D\uDCCD ${locationName}\n\n` : '';
       const msg = hi
         ? `\uD83C\uDFE5 ${header}\u0928\u091C\u093C\u0926\u0940\u0915\u0940 \u0938\u0941\u0935\u093F\u0927\u093E\u090F\u0901:\n\n${lines}\n\n0: \u0935\u093E\u092A\u0938`
         : `\uD83C\uDFE5 ${header}Nearby Facilities:\n\n${lines}\n\n0: Back`;
@@ -790,7 +784,7 @@ export default function RuralIVRScreen() {
         r.location ? `\u2502 ${hi ? '\u0938\u094D\u0925\u093E\u0928' : 'Location'}: ${r.location}` : null,
         '\u2502\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2502',
         `\u2502 ${hi ? '\u0930\u0947\u092B\u093C\u0930' : 'Refer to'}: ${r.facility.name}`,
-        `\u2502 ${r.facility.type} \u2014 ${r.facility.dist} km`,
+        `\u2502 ${r.facility.type}`,
         `\u2502 \u260E ${r.facility.phone}`,
         '\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518',
         '',
