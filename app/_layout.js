@@ -78,11 +78,6 @@ function AppNavigator() {
       if (!onboardingScreens.includes(currentScreen)) {
         router.replace('/login');
       }
-    } else if (userRole === ROLES.ASHA) {
-      const ashaAllowed = ['asha', 'role-select', 'symptoms', 'result'];
-      if (!ashaAllowed.includes(currentScreen)) {
-        router.replace('/asha');
-      }
     }
   }, [isReady, userRole, hasSession, segments]);
 
