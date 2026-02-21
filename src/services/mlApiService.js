@@ -261,13 +261,17 @@ function localFallbackPredict(payload) {
       cycle_variance: payload.cycle_variance,
     };
     const result = localPredict(data);
+
+    // Compute health score locally so users always see one
+    const localScore = computeLocalHealthScore(data);
+
     return normaliseApiResult(
       {
         risk_level: result.risk_level,
         confidence: result.confidence,
         recommendation_key: result.recommendation_key,
-        health_score: null,
-        grade: null,
+        health_score: localScore.overall_score ?? null,
+        grade: localScore.grade ?? null,
       },
       'local_fallback'
     );

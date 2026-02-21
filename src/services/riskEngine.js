@@ -194,9 +194,9 @@ export async function enhancedRiskAssessment({
   // ── 1. Always run the rule-based engine (instant) ──
   const ruleResult = calculateRisk(symptoms, emergency, lang);
 
-  // ── 2. Attempt ML prediction if we have profile data ──
+  // ── 2. Attempt ML prediction if we have at least age ──
   let mlResult = null;
-  if (profile.age && (profile.avgCycleLength || lifestyle.cycle_length_avg)) {
+  if (profile.age) {
     try {
       const mlInput = {
         age: profile.age,
@@ -242,6 +242,28 @@ export async function enhancedRiskAssessment({
     }
   }
 
+  // ── 3b. If ML didn't give a health score, compute one locally ──
+  if (healthScore == null && profile.age) {
+    try {
+      const localScoreResult = await mlHealthScore({
+        age: profile.age,
+        bmi: profile.bmi || undefined,
+        height: profile.height || undefined,
+        weight: profile.weight || undefined,
+        stress_level: lifestyle.stress_level || 3,
+        sleep_hours: lifestyle.sleep_hours || 7,
+        exercise_freq: lifestyle.exercise_freq || 3,
+        cycle_length_avg: profile.avgCycleLength || lifestyle.cycle_length_avg || 28,
+      });
+      if (localScoreResult) {
+        healthScore = localScoreResult.overall_score ?? null;
+        if (!healthGrade) healthGrade = localScoreResult.grade ?? null;
+      }
+    } catch (e) {
+      console.warn('[riskEngine] Local health score failed:', e.message);
+    }
+  }
+
   // Emergency always forces HIGH
   if (hasEmergency) {
     effectiveLevel = RISK_LEVELS.HIGH;
@@ -257,7 +279,7 @@ export async function enhancedRiskAssessment({
     requiresEmergency: hasEmergency || effectiveLevel === RISK_LEVELS.HIGH,
 
     // ML-enriched fields
-    mlAvailable: useML,
+    mlAvailable: useML || healthScore != null,
     mlConfidence,
     healthScore,
     healthGrade,
