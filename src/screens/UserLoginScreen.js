@@ -161,12 +161,7 @@ export default function UserLoginScreen() {
     const { success } = await loginWithPin(selectedUser.id, pin);
     if (success) {
       await refreshUser();
-      // Navigate to the appropriate home for the user's role
-      if (selectedUser.role === 'asha') {
-        router.replace('/asha');
-      } else {
-        router.replace('/(tabs)');
-      }
+      router.replace('/(tabs)');
     } else {
       setPinError(txt.wrongPin);
     }

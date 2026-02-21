@@ -112,7 +112,6 @@ function AppNavigator() {
         <Stack.Screen name="symptoms"      options={{ title: 'Health Assessment', headerShown: false }} />
         <Stack.Screen name="result"        options={{ title: 'Result', headerShown: false }} />
         <Stack.Screen name="profile-setup" options={{ title: 'Profile Setup',   headerShown: false }} />
-        <Stack.Screen name="asha"          options={{ title: 'ASHA Dashboard',  headerShown: false }} />
         <Stack.Screen name="login"         options={{ title: 'Login',           headerShown: false }} />
       </Stack>
     </LanguageProvider>

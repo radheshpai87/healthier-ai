@@ -103,7 +103,7 @@ export const STORAGE_KEYS = {
 // ── User Roles ─────────────────────────────────
 export const ROLES = {
   WOMAN: 'woman',
-  ASHA: 'asha',
+  IVR_DEMO: 'ivr_demo',
 };
 
 // ── Advice Strings (EN / HI) ──────────────────
