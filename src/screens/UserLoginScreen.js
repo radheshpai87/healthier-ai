@@ -239,7 +239,7 @@ export default function UserLoginScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.logo}>AH</Text>
+        <Text style={styles.logo}>💗</Text>
         <Text style={styles.title}>{txt.title}</Text>
         <Text style={styles.subtitle}>{txt.subtitle}</Text>
       </View>
@@ -311,10 +311,7 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
   },
   logo: {
-    fontSize: 36,
-    fontWeight: '800',
-    color: '#C2185B',
-    letterSpacing: -1,
+    fontSize: 42,
     marginBottom: 8,
   },
   title: {
@@ -332,10 +329,13 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     justifyContent: 'center',
     paddingBottom: 24,
+    paddingTop: 10,
     gap: 16,
   },
   userCardWrapper: {
     position: 'relative',
+    marginTop: 6,
+    marginRight: 6,
   },
   userCard: {
     width: 130,
