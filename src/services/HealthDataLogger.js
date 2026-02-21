@@ -173,8 +173,10 @@ export async function logDailyHealth(logData) {
  */
 export async function getDailyLogs() {
   try {
-    const logs = await AsyncStorage.getItem(k(KEYS.DAILY_LOGS));
-    return logs ? JSON.parse(logs) : [];
+    const raw = await AsyncStorage.getItem(k(KEYS.DAILY_LOGS));
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
   } catch (error) {
     console.error('Error getting daily logs:', error);
     return [];
@@ -188,6 +190,7 @@ export async function getDailyLogs() {
  */
 export async function getRecentLogs(days = 7) {
   const logs = await getDailyLogs();
+  if (!Array.isArray(logs) || logs.length === 0) return [];
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - days);
   
@@ -343,8 +346,10 @@ async function saveRiskAssessment(assessment) {
  */
 export async function getRiskHistory() {
   try {
-    const history = await AsyncStorage.getItem(k(KEYS.RISK_HISTORY));
-    return history ? JSON.parse(history) : [];
+    const raw = await AsyncStorage.getItem(k(KEYS.RISK_HISTORY));
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
   } catch (error) {
     console.error('Error getting risk history:', error);
     return [];
