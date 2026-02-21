@@ -93,12 +93,69 @@ const { width: SCREEN_W } = Dimensions.get('window');
 // Facility directory (realistic Indian PHC/CHC data)
 // ────────────────────────────────────────────────────────
 const FACILITY_DIRECTORY = [
-  { name: 'ASHA Sushila Devi',       type: 'ASHA Worker',       dist: 0,  phone: '9876543210' },
-  { name: 'Sub-Centre Majhgawan',    type: 'Sub-Centre',        dist: 2,  phone: '05192-274301' },
-  { name: 'PHC Rampur',              type: 'PHC',               dist: 5,  phone: '05192-274512' },
-  { name: 'CHC Barabanki',           type: 'CHC',               dist: 12, phone: '05248-222017' },
-  { name: 'District Hospital Gonda', type: 'District Hospital', dist: 22, phone: '05262-231401' },
+  { name: 'ASHA Sushila Devi',       type: 'ASHA Worker',       lat: 26.8500, lng: 81.8800, phone: '9876543210' },
+  { name: 'Sub-Centre Majhgawan',    type: 'Sub-Centre',        lat: 26.8650, lng: 81.8640, phone: '05192-274301' },
+  { name: 'PHC Rampur',              type: 'PHC',               lat: 26.9000, lng: 81.8100, phone: '05192-274512' },
+  { name: 'CHC Barabanki',           type: 'CHC',               lat: 26.9320, lng: 81.1800, phone: '05248-222017' },
+  { name: 'District Hospital Gonda', type: 'District Hospital', lat: 27.1300, lng: 81.9600, phone: '05262-231401' },
 ];
+
+// ────────────────────────────────────────────────────────
+// Haversine distance (km) between two GPS coordinates
+// ────────────────────────────────────────────────────────
+function haversineKm(lat1, lng1, lat2, lng2) {
+  const R = 6371; // Earth's radius in km
+  const toRad = (deg) => (deg * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+/**
+ * Get facilities sorted by real GPS distance from the user.
+ * Falls back to static order if GPS is unavailable.
+ *
+ * @param {Object|null} userCoords - { latitude, longitude } from location service
+ * @returns {{ facilities: Array, hasGPS: boolean }}
+ */
+function getFacilitiesWithDistance(userCoords) {
+  if (!userCoords || userCoords.latitude == null) {
+    // No GPS — return with default estimated distances
+    return {
+      facilities: FACILITY_DIRECTORY.map((f, i) => ({ ...f, dist: [0, 2, 5, 12, 22][i] })),
+      hasGPS: false,
+    };
+  }
+  const withDist = FACILITY_DIRECTORY.map((f) => ({
+    ...f,
+    dist: Math.round(haversineKm(userCoords.latitude, userCoords.longitude, f.lat, f.lng) * 10) / 10,
+  }));
+  withDist.sort((a, b) => a.dist - b.dist);
+  return { facilities: withDist, hasGPS: true };
+}
+
+/**
+ * Find the nearest appropriate facility based on risk level.
+ * HIGH → nearest hospital/CHC. MODERATE → nearest PHC+. LOW → nearest ASHA/Sub-Centre.
+ * Always sorted by actual GPS distance.
+ */
+function findNearestFacility(riskLevel, facilitiesWithDist) {
+  const typesByLevel = {
+    HIGH: ['District Hospital', 'CHC'],
+    MODERATE: ['PHC', 'CHC', 'District Hospital'],
+    LOW: ['ASHA Worker', 'Sub-Centre', 'PHC'],
+  };
+  const preferred = typesByLevel[riskLevel] || typesByLevel.LOW;
+  // Already sorted by distance — find first matching type
+  for (const type of preferred) {
+    const match = facilitiesWithDist.find((f) => f.type === type);
+    if (match) return match;
+  }
+  return facilitiesWithDist[0]; // ultimate fallback: closest anything
+}
 
 // ────────────────────────────────────────────────────────
 // IVR state-machine screens
@@ -399,12 +456,20 @@ export default function RuralIVRScreen() {
         aiAdvice = hi ? 'AI \u0938\u0932\u093E\u0939 \u0909\u092A\u0932\u092C\u094D\u0927 \u0928\u0939\u0940\u0902\u0964' : 'AI advice unavailable.';
       }
 
-      // Get location + select facility by severity
-      const location = await getSavedLocation();
-      const facility =
-        riskResult.level === 'HIGH' ? FACILITY_DIRECTORY.find((f) => f.type === 'District Hospital') :
-        riskResult.level === 'MODERATE' ? FACILITY_DIRECTORY.find((f) => f.type === 'PHC') :
-        FACILITY_DIRECTORY.find((f) => f.type === 'ASHA Worker');
+      // Get live GPS → compute real distances → pick nearest appropriate facility
+      let userCoords = null;
+      let location = null;
+      try {
+        userCoords = await getCurrentLocation();
+        location = await getSavedLocation();
+      } catch (_) {
+        try { location = await getSavedLocation(); } catch (__) {}
+      }
+      const { facilities: sortedFacilities, hasGPS } = getFacilitiesWithDistance(userCoords);
+      const facility = findNearestFacility(riskResult.level, sortedFacilities);
+      const gpsNote = hasGPS
+        ? (hi ? `📍 GPS से गणना` : `📍 GPS-calculated`)
+        : (hi ? `📍 अनुमानित दूरी` : `📍 Estimated distance`);
 
       const symptomNames = getActiveSymptomLabels(symptoms, emergencyFlags, language).join(', ');
 
@@ -450,7 +515,7 @@ export default function RuralIVRScreen() {
 
       log('IVR', `${levelLabel}${confText ? ` (${confText})` : ''} [${sourceText}]\n\n${hi ? '\u0932\u0915\u094D\u0937\u0923' : 'Symptoms'}: ${symptomNames}`);
       log('AI', aiAdvice);
-      log('IVR', `\uD83D\uDCCD ${hi ? '\u0930\u0947\u092B\u093C\u0930' : 'Refer'}: ${result.facility.name} (${result.facility.dist} km) \u2014 ${result.facility.phone}`);
+      log('IVR', `\uD83D\uDCCD ${hi ? '\u0930\u0947\u092B\u093C\u0930' : 'Refer'}: ${result.facility.name} (${result.facility.dist} km) \u2014 ${result.facility.phone}\n${gpsNote}`);
       speak(riskResult.advice);
 
       // If HIGH risk, trigger emergency SMS + call prompt
@@ -561,24 +626,35 @@ export default function RuralIVRScreen() {
     go(S.DAILY_LOG_DONE);
   };
 
-  // ── Option 7: Facilities ────────────────────────────
+  // ── Option 7: Facilities (GPS distance-sorted) ─────
   useEffect(() => {
     if (screen !== S.FACILITIES) return;
     (async () => {
+      setLoading(true);
       let locationName = '';
+      let userCoords = null;
       try {
+        userCoords = await getCurrentLocation();
         locationName = await getLocationDisplayName() || '';
-      } catch (_) {}
+      } catch (_) {
+        try { locationName = await getLocationDisplayName() || ''; } catch (__) {}
+      }
 
-      const lines = FACILITY_DIRECTORY.map(
+      const { facilities, hasGPS } = getFacilitiesWithDistance(userCoords);
+      const gpsLabel = hasGPS
+        ? (hi ? '📍 GPS से दूरी' : '📍 GPS distance')
+        : (hi ? '📍 अनुमानित दूरी' : '📍 Estimated distance');
+
+      const lines = facilities.map(
         (f, i) => `${i + 1}. ${f.name}\n   ${f.type} \u2014 ${f.dist} km \u2014 \u260E ${f.phone}`,
       ).join('\n');
-      const header = locationName ? `\uD83D\uDCCD ${locationName}\n\n` : '';
+      const header = locationName ? `\uD83D\uDCCD ${locationName}\n${gpsLabel}\n\n` : `${gpsLabel}\n\n`;
       const msg = hi
         ? `\uD83C\uDFE5 ${header}\u0928\u091C\u093C\u0926\u0940\u0915\u0940 \u0938\u0941\u0935\u093F\u0927\u093E\u090F\u0901:\n\n${lines}\n\n0: \u0935\u093E\u092A\u0938`
         : `\uD83C\uDFE5 ${header}Nearby Facilities:\n\n${lines}\n\n0: Back`;
       log('IVR', msg);
       speak(hi ? '\u0928\u091C\u093C\u0926\u0940\u0915\u0940 \u0938\u0941\u0935\u093F\u0927\u093E\u0913\u0902 \u0915\u0940 \u0938\u0942\u091A\u0940' : 'Showing nearby facility list');
+      setLoading(false);
     })();
   }, [screen]);
 
