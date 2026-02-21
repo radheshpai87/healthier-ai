@@ -59,7 +59,7 @@ const localT = {
     pageTitle: 'Overall Health',
     pageSubtitle: 'Your complete health overview',
     healthScore: 'Health Score',
-    noScoreYet: 'Log a few days of data to see your score',
+    noScoreYet: 'Complete your profile to see your score',
     sleepScore: 'Sleep',
     stressScore: 'Stress',
     exerciseScore: 'Exercise',
@@ -84,6 +84,9 @@ const localT = {
     aiInsight: 'AI Insight',
     loadingAI: 'Generating insight...',
     getAiInsight: 'Get AI Insight',
+    hideInsight: 'Hide Insight',
+    showInsight: 'Show Insight',
+    autoInsight: 'AI Insights',
     dailyLog: 'Quick Daily Log',
     stressLevel: 'Stress Level',
     sleepHours: 'Sleep (hrs)',
@@ -116,7 +119,7 @@ const localT = {
     pageTitle: 'समगर सवसथय',
     pageSubtitle: 'आपक परण सवसथय अवलकन',
     healthScore: 'सवसथय सकर',
-    noScoreYet: 'अपन सकर दखन क लए कछ दन क डट लग कर',
+    noScoreYet: 'अपन सकर दखन क लए परफइल पर कर',
     sleepScore: 'नद',
     stressScore: 'तनव',
     exerciseScore: 'वययम',
@@ -141,6 +144,9 @@ const localT = {
     aiInsight: 'AI अतरदषट',
     loadingAI: 'अतरदषट तयर ह रह ह...',
     getAiInsight: 'AI अतरदषट परपत कर',
+    hideInsight: 'छपए',
+    showInsight: 'दखए',
+    autoInsight: 'AI अतरदषट',
     dailyLog: 'तवरत दनक लग',
     stressLevel: 'तनव सतर',
     sleepHours: 'नद (घट)',
@@ -260,6 +266,8 @@ export default function OverallHealthScreen() {
 
   const [aiInsights, setAiInsights] = useState({});
   const [aiLoadingIdx, setAiLoadingIdx] = useState(null);
+  const [collapsedInsights, setCollapsedInsights] = useState({});
+  const autoFetchedRef = useRef(false);
 
   // -- Data Loading --
   const loadData = useCallback(async () => {
@@ -335,6 +343,25 @@ export default function OverallHealthScreen() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Auto-fetch AI insights for symptom_check entries
+  useEffect(() => {
+    if (autoFetchedRef.current || symptomEntries.length === 0) return;
+    const symptomChecks = symptomEntries
+      .map((entry, idx) => ({ entry, idx }))
+      .filter(({ entry }) => entry.type === 'symptom_check');
+    if (symptomChecks.length === 0) return;
+    autoFetchedRef.current = true;
+    // Fetch insights for up to first 3 symptom_check entries
+    const toFetch = symptomChecks.slice(0, 3);
+    (async () => {
+      for (const { entry, idx } of toFetch) {
+        if (!aiInsights[idx]) {
+          await handleGetAiInsight(entry, idx);
+        }
+      }
+    })();
+  }, [symptomEntries]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -550,7 +577,14 @@ export default function OverallHealthScreen() {
                   </View>
                 </View>
                 {healthScore.days_logged > 0 && (
-                  <Text style={styles.daysLoggedText}>{healthScore.days_logged} {t.daysLogged}</Text>
+                  <Text style={styles.daysLoggedText}>
+                    {healthScore.days_logged} {t.daysLogged}
+                  </Text>
+                )}
+                {healthScore.days_logged === 0 && (
+                  <Text style={styles.daysLoggedText}>
+                    {language === 'hi' ? 'डिफ़ॉल्ट मान • अधिक सटीकता के लिए दैनिक लॉग करें' : 'Default values • Log daily for better accuracy'}
+                  </Text>
                 )}
               </>
             ) : (
@@ -713,14 +747,27 @@ export default function OverallHealthScreen() {
                   <View style={styles.aiSection}>
                     {aiInsights[idx] ? (
                       <View style={styles.aiInsightBox}>
-                        <View style={styles.aiInsightHeader}>
+                        <TouchableOpacity
+                          style={styles.aiInsightHeader}
+                          onPress={() => setCollapsedInsights((prev) => ({ ...prev, [idx]: !prev[idx] }))}
+                          activeOpacity={0.7}
+                        >
                           <Sparkles size={14} color="#C2185B" />
                           <Text style={styles.aiInsightLabel}>{t.aiInsight}</Text>
-                          <TouchableOpacity onPress={() => speakText(aiInsights[idx])} style={{ marginLeft: 'auto' }}>
-                            <Volume2 size={16} color="#C2185B" />
-                          </TouchableOpacity>
-                        </View>
-                        <Text style={styles.aiInsightText}>{aiInsights[idx]}</Text>
+                          <View style={{ marginLeft: 'auto', flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                            <TouchableOpacity onPress={() => speakText(aiInsights[idx])}>
+                              <Volume2 size={16} color="#C2185B" />
+                            </TouchableOpacity>
+                            {collapsedInsights[idx] ? (
+                              <ChevronDown size={16} color="#C2185B" />
+                            ) : (
+                              <ChevronUp size={16} color="#C2185B" />
+                            )}
+                          </View>
+                        </TouchableOpacity>
+                        {!collapsedInsights[idx] && (
+                          <Text style={styles.aiInsightText}>{aiInsights[idx]}</Text>
+                        )}
                       </View>
                     ) : aiLoadingIdx === idx ? (
                       <View style={styles.aiLoadingRow}>

@@ -430,17 +430,17 @@ export async function calculateHealthScore() {
   const logs = await getRecentLogs(14);
   const profile = await getUserProfile();
   
-  if (logs.length === 0) {
-    return {
-      score: null,
-      message: 'Log at least a few days of data to see your health score',
-    };
-  }
-  
-  // Calculate component scores
-  const avgSleep = logs.reduce((sum, l) => sum + (l.sleep_hours || 0), 0) / logs.length;
-  const avgStress = logs.reduce((sum, l) => sum + (l.stress_level || 3), 0) / logs.length;
-  const avgExercise = logs.reduce((sum, l) => sum + (l.exercise_freq || 0), 0) / logs.length;
+  // Use sensible defaults when no logs exist so score is always available
+  const hasLogs = logs.length > 0;
+  const avgSleep = hasLogs
+    ? logs.reduce((sum, l) => sum + (l.sleep_hours || 0), 0) / logs.length
+    : 7; // default: 7 hrs
+  const avgStress = hasLogs
+    ? logs.reduce((sum, l) => sum + (l.stress_level || 3), 0) / logs.length
+    : 3; // default: moderate
+  const avgExercise = hasLogs
+    ? logs.reduce((sum, l) => sum + (l.exercise_freq || 0), 0) / logs.length
+    : 3; // default: moderate
   
   // Sleep score (7-9 hours optimal)
   let sleepScore = avgSleep >= 7 && avgSleep <= 9 ? 100 : 
