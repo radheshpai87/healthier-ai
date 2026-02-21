@@ -13,7 +13,7 @@ import { getPeriodData } from '../utils/storage';
 import { scopedKey } from './authService';
 
 const KEYS = {
-  DAILY_LOGS:   'aurahealth_daily_logs',
+  DAILY_LOGS:   'aurahealth_hdl_daily_logs',
   USER_PROFILE: 'aurahealth_user_profile',
   RISK_HISTORY: 'aurahealth_risk_history',
   SYMPTOMS_LOG: 'aurahealth_symptoms_log',
@@ -176,7 +176,12 @@ export async function getDailyLogs() {
     const raw = await AsyncStorage.getItem(k(KEYS.DAILY_LOGS));
     if (!raw) return [];
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    if (Array.isArray(parsed)) return parsed;
+    // Handle legacy object format { "2026-02-21": { ... } } — convert to array
+    if (parsed && typeof parsed === 'object') {
+      return Object.entries(parsed).map(([date, entry]) => ({ date, ...entry }));
+    }
+    return [];
   } catch (error) {
     console.error('Error getting daily logs:', error);
     return [];
