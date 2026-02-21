@@ -154,6 +154,77 @@ export function useCycleTracker() {
       } else if (dates && dates.length === 1) {
         const sortedDates = dates.map(d => new Date(d)).sort((a, b) => a - b);
         setPeriodDates(sortedDates);
+
+        // With a single date, assume defaults and still generate predictions
+        const defaultCycle = 28;
+        const defaultPeriod = 5;
+        setCycleLength(defaultCycle);
+        setPeriodLength(defaultPeriod);
+
+        const lastPeriodStart = sortedDates[0];
+        const prediction = predictNextPeriod(lastPeriodStart, defaultCycle);
+
+        setNextPeriodDate(formatDate(prediction.date));
+        setNextPeriodDateStr(toDateString(prediction.date));
+        setDaysUntilNextPeriod(prediction.daysUntil);
+
+        // Predicted period range
+        const predictedRange = [];
+        for (let i = 0; i < defaultPeriod; i++) {
+          const d = new Date(prediction.date);
+          d.setDate(d.getDate() + i);
+          predictedRange.push(toDateString(d));
+        }
+        setPredictedPeriodDates(predictedRange);
+
+        // Fertile window + ovulation (default cycle)
+        const ovDay = defaultCycle - 14;
+        const fertileStart = ovDay - 5;
+        const fertileEnd = ovDay + 1;
+        const fertileRange = [];
+        let ovDateStr = null;
+
+        for (let i = fertileStart; i <= fertileEnd; i++) {
+          const d = new Date(lastPeriodStart);
+          d.setDate(d.getDate() + i);
+          const ds = toDateString(d);
+          fertileRange.push(ds);
+          if (i === ovDay) ovDateStr = ds;
+        }
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const lastFertileDateObj = new Date(fertileRange[fertileRange.length - 1]);
+        if (lastFertileDateObj < today) {
+          const nextFertileRange = [];
+          let nextOvDateStr = null;
+          for (let i = fertileStart; i <= fertileEnd; i++) {
+            const d = new Date(prediction.date);
+            d.setDate(d.getDate() + i);
+            const ds = toDateString(d);
+            nextFertileRange.push(ds);
+            if (i === ovDay) nextOvDateStr = ds;
+          }
+          setFertileDates(nextFertileRange);
+          setOvulationDate(nextOvDateStr);
+        } else {
+          setFertileDates(fertileRange);
+          setOvulationDate(ovDateStr);
+        }
+
+        // Current phase
+        const daysSince = Math.round((today - lastPeriodStart) / (1000 * 60 * 60 * 24));
+        setDayOfCycle(daysSince + 1);
+
+        if (daysSince < defaultPeriod) {
+          setCurrentPhase(CYCLE_PHASES.MENSTRUAL);
+        } else if (daysSince >= fertileStart && daysSince <= fertileEnd) {
+          setCurrentPhase(daysSince === ovDay ? CYCLE_PHASES.OVULATION : CYCLE_PHASES.FERTILE);
+        } else if (daysSince < fertileStart) {
+          setCurrentPhase(CYCLE_PHASES.FOLLICULAR);
+        } else {
+          setCurrentPhase(CYCLE_PHASES.LUTEAL);
+        }
       }
     } catch (e) {
       console.warn('[CycleTracker] Error:', e);
