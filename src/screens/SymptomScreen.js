@@ -51,7 +51,8 @@ const t = {
     irregularCycles: 'Irregular Periods',
     pain: 'Pain / Cramps',
     pregnancyIssue: 'Pregnancy Complication',
-    hbSection: 'Hemoglobin Level (optional)',
+    hbSection: 'Hemoglobin Level',
+    hbOptional: 'Optional',
     hbPlaceholder: 'Enter Hb value (e.g., 10.5)',
     hbNote: 'If Hb < 11 g/dL, it indicates anemia',
     emergencySection: 'Emergency Signs',
@@ -60,9 +61,10 @@ const t = {
     severePain: 'Severe Unbearable Pain',
     vomiting: 'Continuous Vomiting',
     submitBtn: 'Check Risk Level',
-    assessing: 'Assessing...',
+    assessing: 'Analysing...',
     // Lifestyle quick-input
-    lifestyleQuick: 'Lifestyle Factors (Optional)',
+    lifestyleQuick: 'Lifestyle Factors',
+    lifestyleOptional: 'Optional',
     lifestyleQuickHint: 'Helps ML model give a better prediction',
     stressLabel: 'Stress Level',
     stressOpts: ['1-Low', '2', '3', '4', '5-High'],
@@ -77,6 +79,10 @@ const t = {
     bleedingLevelOpts: ['Light', 'Moderate', 'Heavy', 'Very Heavy'],
     fatigueLevelLabel: 'Fatigue Severity',
     fatigueLevelOpts: ['Mild', 'Moderate', 'Severe'],
+    stepSymptoms: 'Step 1',
+    stepHb: 'Step 2',
+    stepEmergency: 'Step 3',
+    stepLifestyle: 'Step 4',
   },
   hi: {
     title: 'स्वास्थ्य मूल्यांकन',
@@ -88,7 +94,8 @@ const t = {
     irregularCycles: 'अनियमित माहवारी',
     pain: 'दर्द / ऐंठन',
     pregnancyIssue: 'गर्भावस्था जटिलता',
-    hbSection: 'हीमोग्लोबिन स्तर (वैकल्पिक)',
+    hbSection: 'हीमोग्लोबिन स्तर',
+    hbOptional: 'वैकल्पिक',
     hbPlaceholder: 'Hb मान दर्ज करें (जैसे 10.5)',
     hbNote: 'यदि Hb < 11 g/dL है, तो यह एनीमिया का संकेत है',
     emergencySection: 'आपातकालीन संकेत',
@@ -98,7 +105,8 @@ const t = {
     vomiting: 'लगातार उल्टी',
     submitBtn: 'जोखिम स्तर जांचें',
     assessing: 'जांच हो रही है...',
-    lifestyleQuick: 'जीवनशैली कारक (वैकल्पिक)',
+    lifestyleQuick: 'जीवनशैली कारक',
+    lifestyleOptional: 'वैकल्पिक',
     lifestyleQuickHint: 'ML मॉडल को बेहतर भविष्यवाणी देने में मदद करता है',
     stressLabel: 'तनाव स्तर',
     stressOpts: ['1-कम', '2', '3', '4', '5-अधिक'],
@@ -113,6 +121,10 @@ const t = {
     bleedingLevelOpts: ['हल्का', 'मध्यम', 'भारी', 'बहुत भारी'],
     fatigueLevelLabel: 'थकान की तीव्रता',
     fatigueLevelOpts: ['हल्की', 'मध्यम', 'गंभीर'],
+    stepSymptoms: 'चरण 1',
+    stepHb: 'चरण 2',
+    stepEmergency: 'चरण 3',
+    stepLifestyle: 'चरण 4',
   },
 };
 
@@ -172,6 +184,10 @@ export default function SymptomScreen() {
       } catch (_) {}
     })();
   }, []);
+
+  // Count selected symptoms for progress
+  const selectedCount = Object.values(symptoms).filter(Boolean).length +
+    Object.values(emergency).filter(Boolean).length;
 
   // Toggle a symptom flag
   const toggleSymptom = (key) => {
@@ -265,6 +281,24 @@ export default function SymptomScreen() {
     }
   };
 
+  // ── Section Header Helper ────────────────────
+  const SectionHeader = ({ icon, title, step, badge }) => (
+    <View style={styles.sectionHeader}>
+      <View style={styles.sectionIconCircle}>
+        <Text style={styles.sectionIcon}>{icon}</Text>
+      </View>
+      <View style={{ flex: 1, flexShrink: 1 }}>
+        <Text style={styles.sectionTitle} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{title}</Text>
+        {step ? <Text style={styles.sectionStep}>{step}</Text> : null}
+      </View>
+      {badge ? (
+        <View style={styles.sectionBadge}>
+          <Text style={styles.sectionBadgeText}>{badge}</Text>
+        </View>
+      ) : null}
+    </View>
+  );
+
   return (
     <SafeAreaView style={styles.safe}>
       <KeyboardAvoidingView
@@ -274,214 +308,251 @@ export default function SymptomScreen() {
         <ScrollView
           contentContainerStyle={styles.container}
           keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          {/* Header */}
-          <Text style={styles.title}>{texts.title}</Text>
-          <Text style={styles.subtitle}>{texts.subtitle}</Text>
+          {/* ── Header Card ──────────────── */}
+          <View style={styles.headerCard}>
+            <View style={styles.headerAccent} />
+            <View style={styles.headerRow}>
+              <View style={styles.headerIconCircle}>
+                <Text style={styles.headerIcon}>🩺</Text>
+              </View>
+              <View style={{ flex: 1, flexShrink: 1 }}>
+                <Text style={styles.title} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{texts.title}</Text>
+                <Text style={styles.subtitle} numberOfLines={2}>{texts.subtitle}</Text>
+              </View>
+            </View>
+            {selectedCount > 0 && (
+              <View style={styles.selectedPill}>
+                <Text style={styles.selectedPillText}>
+                  {selectedCount} {lang === 'hi' ? 'चयनित' : 'selected'}
+                </Text>
+              </View>
+            )}
+          </View>
 
           {/* ── Symptoms Section ──────────── */}
-          <Text style={styles.sectionTitle}>{texts.symptomsSection}</Text>
+          <SectionHeader icon="💊" title={texts.symptomsSection} step={texts.stepSymptoms} />
 
-          <SymptomToggle
-            label={texts.heavyBleeding}
-            active={symptoms.heavyBleeding}
-            onToggle={() => toggleSymptom('heavyBleeding')}
-            weight={SYMPTOM_WEIGHTS.heavyBleeding}
-          />
-          {symptoms.heavyBleeding && (
-            <View style={styles.detailContainer}>
-              <Text style={styles.detailLabel}>{texts.bleedingLevelLabel}</Text>
+          <View style={styles.sectionCard}>
+            <SymptomToggle
+              label={texts.heavyBleeding}
+              active={symptoms.heavyBleeding}
+              onToggle={() => toggleSymptom('heavyBleeding')}
+              weight={SYMPTOM_WEIGHTS.heavyBleeding}
+            />
+            {symptoms.heavyBleeding && (
+              <View style={styles.detailContainer}>
+                <Text style={styles.detailLabel}>{texts.bleedingLevelLabel}</Text>
+                <View style={styles.chipRow}>
+                  {texts.bleedingLevelOpts.map((opt) => (
+                    <TouchableOpacity
+                      key={opt}
+                      style={[styles.chip, bleedingLevel === opt && styles.chipActive]}
+                      onPress={() => setBleedingLevel(bleedingLevel === opt ? '' : opt)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={[styles.chipText, bleedingLevel === opt && styles.chipTextActive]} numberOfLines={1}>
+                        {opt}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            )}
+            <SymptomToggle
+              label={texts.fatigue}
+              active={symptoms.fatigue}
+              onToggle={() => toggleSymptom('fatigue')}
+              weight={SYMPTOM_WEIGHTS.fatigue}
+            />
+            {symptoms.fatigue && (
+              <View style={styles.detailContainer}>
+                <Text style={styles.detailLabel}>{texts.fatigueLevelLabel}</Text>
+                <View style={styles.chipRow}>
+                  {texts.fatigueLevelOpts.map((opt) => (
+                    <TouchableOpacity
+                      key={opt}
+                      style={[styles.chip, fatigueLevel === opt && styles.chipActive]}
+                      onPress={() => setFatigueLevel(fatigueLevel === opt ? '' : opt)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={[styles.chipText, fatigueLevel === opt && styles.chipTextActive]} numberOfLines={1}>
+                        {opt}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            )}
+            <SymptomToggle
+              label={texts.dizziness}
+              active={symptoms.dizziness}
+              onToggle={() => toggleSymptom('dizziness')}
+              weight={SYMPTOM_WEIGHTS.dizziness}
+            />
+            <SymptomToggle
+              label={texts.irregularCycles}
+              active={symptoms.irregularCycles}
+              onToggle={() => toggleSymptom('irregularCycles')}
+              weight={SYMPTOM_WEIGHTS.irregularCycles}
+            />
+            <SymptomToggle
+              label={texts.pain}
+              active={symptoms.pain}
+              onToggle={() => toggleSymptom('pain')}
+              weight={SYMPTOM_WEIGHTS.pain}
+            />
+            {symptoms.pain && (
+              <View style={styles.detailContainer}>
+                <Text style={styles.detailLabel}>{texts.painIntensityLabel}</Text>
+                <View style={styles.chipRow}>
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((val) => (
+                    <TouchableOpacity
+                      key={val}
+                      style={[styles.chip, styles.chipSmall, painIntensity === val && styles.chipActive]}
+                      onPress={() => setPainIntensity(painIntensity === val ? 0 : val)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={[styles.chipText, painIntensity === val && styles.chipTextActive]}>
+                        {val}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            )}
+            <SymptomToggle
+              label={texts.pregnancyIssue}
+              active={symptoms.pregnancyIssue}
+              onToggle={() => toggleSymptom('pregnancyIssue')}
+              weight={SYMPTOM_WEIGHTS.pregnancyIssue}
+            />
+
+            {/* ── Symptom Duration ─────────── */}
+            <View style={styles.durationSection}>
+              <Text style={styles.miniLabel}>{texts.durationLabel}</Text>
               <View style={styles.chipRow}>
-                {texts.bleedingLevelOpts.map((opt) => (
+                {texts.durationOpts.map((opt) => (
                   <TouchableOpacity
                     key={opt}
-                    style={[styles.chip, bleedingLevel === opt && styles.chipActive]}
-                    onPress={() => setBleedingLevel(bleedingLevel === opt ? '' : opt)}
+                    style={[styles.chip, symptomDuration === opt && styles.chipActive]}
+                    onPress={() => setSymptomDuration(symptomDuration === opt ? '' : opt)}
                     activeOpacity={0.7}
                   >
-                    <Text style={[styles.chipText, bleedingLevel === opt && styles.chipTextActive]}>
+                    <Text style={[styles.chipText, symptomDuration === opt && styles.chipTextActive]} numberOfLines={1}>
                       {opt}
                     </Text>
                   </TouchableOpacity>
                 ))}
               </View>
             </View>
-          )}
-          <SymptomToggle
-            label={texts.fatigue}
-            active={symptoms.fatigue}
-            onToggle={() => toggleSymptom('fatigue')}
-            weight={SYMPTOM_WEIGHTS.fatigue}
-          />
-          {symptoms.fatigue && (
-            <View style={styles.detailContainer}>
-              <Text style={styles.detailLabel}>{texts.fatigueLevelLabel}</Text>
-              <View style={styles.chipRow}>
-                {texts.fatigueLevelOpts.map((opt) => (
-                  <TouchableOpacity
-                    key={opt}
-                    style={[styles.chip, fatigueLevel === opt && styles.chipActive]}
-                    onPress={() => setFatigueLevel(fatigueLevel === opt ? '' : opt)}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={[styles.chipText, fatigueLevel === opt && styles.chipTextActive]}>
-                      {opt}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-          )}
-          <SymptomToggle
-            label={texts.dizziness}
-            active={symptoms.dizziness}
-            onToggle={() => toggleSymptom('dizziness')}
-            weight={SYMPTOM_WEIGHTS.dizziness}
-          />
-          <SymptomToggle
-            label={texts.irregularCycles}
-            active={symptoms.irregularCycles}
-            onToggle={() => toggleSymptom('irregularCycles')}
-            weight={SYMPTOM_WEIGHTS.irregularCycles}
-          />
-          <SymptomToggle
-            label={texts.pain}
-            active={symptoms.pain}
-            onToggle={() => toggleSymptom('pain')}
-            weight={SYMPTOM_WEIGHTS.pain}
-          />
-          {symptoms.pain && (
-            <View style={styles.detailContainer}>
-              <Text style={styles.detailLabel}>{texts.painIntensityLabel}</Text>
-              <View style={styles.chipRow}>
-                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((val) => (
-                  <TouchableOpacity
-                    key={val}
-                    style={[styles.chip, styles.chipSmall, painIntensity === val && styles.chipActive]}
-                    onPress={() => setPainIntensity(painIntensity === val ? 0 : val)}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={[styles.chipText, painIntensity === val && styles.chipTextActive]}>
-                      {val}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-          )}
-          <SymptomToggle
-            label={texts.pregnancyIssue}
-            active={symptoms.pregnancyIssue}
-            onToggle={() => toggleSymptom('pregnancyIssue')}
-            weight={SYMPTOM_WEIGHTS.pregnancyIssue}
-          />
-
-          {/* ── Symptom Duration ─────────── */}
-          <Text style={[styles.miniLabel, { marginTop: 16 }]}>{texts.durationLabel}</Text>
-          <View style={styles.chipRow}>
-            {texts.durationOpts.map((opt) => (
-              <TouchableOpacity
-                key={opt}
-                style={[styles.chip, symptomDuration === opt && styles.chipActive]}
-                onPress={() => setSymptomDuration(symptomDuration === opt ? '' : opt)}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.chipText, symptomDuration === opt && styles.chipTextActive]}>
-                  {opt}
-                </Text>
-              </TouchableOpacity>
-            ))}
           </View>
 
           {/* ── Hemoglobin Section ────────── */}
-          <Text style={styles.sectionTitle}>{texts.hbSection}</Text>
-          <TextInput
-            style={styles.hbInput}
-            value={hbValue}
-            onChangeText={handleHbChange}
-            placeholder={texts.hbPlaceholder}
-            placeholderTextColor="#BBB"
-            keyboardType="decimal-pad"
-            maxLength={5}
-          />
-          <Text style={styles.hbNote}>{texts.hbNote}</Text>
-          {symptoms.lowHb && (
-            <Text style={styles.hbWarning}>
-              {lang === 'hi'
-                ? 'कम हीमोग्लोबिन पाया गया'
-                : 'Low hemoglobin detected'}
-            </Text>
-          )}
+          <SectionHeader icon="🩸" title={texts.hbSection} step={texts.stepHb} badge={texts.hbOptional} />
 
-          {/* ── Emergency Section ─────────── */}
-          <Text style={styles.sectionTitle}>{texts.emergencySection}</Text>
-          <Text style={styles.emergencyNote}>{texts.emergencyNote}</Text>
-
-          <SymptomToggle
-            label={texts.fainted}
-            active={emergency.fainted}
-            onToggle={() => toggleEmergency('fainted')}
-            weight={EMERGENCY_INTENSITY.fainted}
-          />
-          <SymptomToggle
-            label={texts.severePain}
-            active={emergency.severePain}
-            onToggle={() => toggleEmergency('severePain')}
-            weight={EMERGENCY_INTENSITY.severePain}
-          />
-          <SymptomToggle
-            label={texts.vomiting}
-            active={emergency.vomiting}
-            onToggle={() => toggleEmergency('vomiting')}
-            weight={EMERGENCY_INTENSITY.vomiting}
-          />
-
-          {/* ── Lifestyle Quick-Input (Optional) ─ */}
-          <Text style={styles.sectionTitle}>{texts.lifestyleQuick}</Text>
-          <Text style={styles.lifestyleHintText}>{texts.lifestyleQuickHint}</Text>
-
-          {/* Stress Level Chips */}
-          <Text style={styles.miniLabel}>{texts.stressLabel}</Text>
-          <View style={styles.chipRow}>
-            {[1, 2, 3, 4, 5].map((val) => (
-              <TouchableOpacity
-                key={val}
-                style={[styles.chip, stressLevel === val && styles.chipActive]}
-                onPress={() => setStressLevel(stressLevel === val ? 0 : val)}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.chipText, stressLevel === val && styles.chipTextActive]}>
-                  {texts.stressOpts[val - 1]}
+          <View style={styles.sectionCard}>
+            <TextInput
+              style={styles.hbInput}
+              value={hbValue}
+              onChangeText={handleHbChange}
+              placeholder={texts.hbPlaceholder}
+              placeholderTextColor="#BBB"
+              keyboardType="decimal-pad"
+              maxLength={5}
+            />
+            <Text style={styles.hbNote}>{texts.hbNote}</Text>
+            {symptoms.lowHb && (
+              <View style={styles.hbWarningBox}>
+                <Text style={styles.hbWarningIcon}>⚠️</Text>
+                <Text style={styles.hbWarning}>
+                  {lang === 'hi'
+                    ? 'कम हीमोग्लोबिन पाया गया'
+                    : 'Low hemoglobin detected'}
                 </Text>
-              </TouchableOpacity>
-            ))}
+              </View>
+            )}
           </View>
 
-          {/* Sleep & Exercise inline */}
-          <View style={styles.inlineRow}>
-            <View style={styles.inlineField}>
-              <Text style={styles.miniLabel}>{texts.sleepLabel}</Text>
-              <TextInput
-                style={styles.miniInput}
-                value={sleepHours}
-                onChangeText={(v) => setSleepHours(v.replace(/[^0-9.]/g, ''))}
-                placeholder={texts.sleepPlaceholder}
-                placeholderTextColor="#BBB"
-                keyboardType="decimal-pad"
-                maxLength={4}
-              />
+          {/* ── Emergency Section ─────────── */}
+          <SectionHeader icon="🚨" title={texts.emergencySection} step={texts.stepEmergency} />
+
+          <View style={[styles.sectionCard, styles.emergencyCard]}>
+            <View style={styles.emergencyNoticeRow}>
+              <Text style={styles.emergencyNoticeIcon}>⚡</Text>
+              <Text style={styles.emergencyNote} numberOfLines={2}>{texts.emergencyNote}</Text>
             </View>
-            <View style={styles.inlineField}>
-              <Text style={styles.miniLabel}>{texts.exerciseLabel}</Text>
-              <TextInput
-                style={styles.miniInput}
-                value={exerciseFreq}
-                onChangeText={(v) => setExerciseFreq(v.replace(/[^0-9]/g, ''))}
-                placeholder={texts.exercisePlaceholder}
-                placeholderTextColor="#BBB"
-                keyboardType="number-pad"
-                maxLength={1}
-              />
+
+            <SymptomToggle
+              label={texts.fainted}
+              active={emergency.fainted}
+              onToggle={() => toggleEmergency('fainted')}
+              weight={EMERGENCY_INTENSITY.fainted}
+            />
+            <SymptomToggle
+              label={texts.severePain}
+              active={emergency.severePain}
+              onToggle={() => toggleEmergency('severePain')}
+              weight={EMERGENCY_INTENSITY.severePain}
+            />
+            <SymptomToggle
+              label={texts.vomiting}
+              active={emergency.vomiting}
+              onToggle={() => toggleEmergency('vomiting')}
+              weight={EMERGENCY_INTENSITY.vomiting}
+            />
+          </View>
+
+          {/* ── Lifestyle Quick-Input (Optional) ─ */}
+          <SectionHeader icon="🏃" title={texts.lifestyleQuick} step={texts.stepLifestyle} badge={texts.lifestyleOptional} />
+
+          <View style={styles.sectionCard}>
+            <Text style={styles.lifestyleHintText}>{texts.lifestyleQuickHint}</Text>
+
+            {/* Stress Level Chips */}
+            <Text style={styles.miniLabel}>{texts.stressLabel}</Text>
+            <View style={styles.chipRow}>
+              {[1, 2, 3, 4, 5].map((val) => (
+                <TouchableOpacity
+                  key={val}
+                  style={[styles.chip, stressLevel === val && styles.chipActive]}
+                  onPress={() => setStressLevel(stressLevel === val ? 0 : val)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.chipText, stressLevel === val && styles.chipTextActive]} numberOfLines={1}>
+                    {texts.stressOpts[val - 1]}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* Sleep & Exercise inline */}
+            <View style={styles.inlineRow}>
+              <View style={styles.inlineField}>
+                <Text style={styles.miniLabel}>{texts.sleepLabel}</Text>
+                <TextInput
+                  style={styles.miniInput}
+                  value={sleepHours}
+                  onChangeText={(v) => setSleepHours(v.replace(/[^0-9.]/g, ''))}
+                  placeholder={texts.sleepPlaceholder}
+                  placeholderTextColor="#BBB"
+                  keyboardType="decimal-pad"
+                  maxLength={4}
+                />
+              </View>
+              <View style={styles.inlineField}>
+                <Text style={styles.miniLabel}>{texts.exerciseLabel}</Text>
+                <TextInput
+                  style={styles.miniInput}
+                  value={exerciseFreq}
+                  onChangeText={(v) => setExerciseFreq(v.replace(/[^0-9]/g, ''))}
+                  placeholder={texts.exercisePlaceholder}
+                  placeholderTextColor="#BBB"
+                  keyboardType="number-pad"
+                  maxLength={1}
+                />
+              </View>
             </View>
           </View>
 
@@ -492,7 +563,8 @@ export default function SymptomScreen() {
             disabled={isSubmitting}
             activeOpacity={0.7}
           >
-            <Text style={styles.submitBtnText}>
+            <Text style={styles.submitBtnIcon}>{isSubmitting ? '⏳' : '🔍'}</Text>
+            <Text style={styles.submitBtnText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
               {isSubmitting ? texts.assessing : texts.submitBtn}
             </Text>
           </TouchableOpacity>
@@ -511,72 +583,218 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   container: {
-    padding: 20,
+    padding: 18,
     paddingBottom: 40,
   },
+
+  /* ── Header Card ── */
+  headerCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 20,
+    marginBottom: 22,
+    overflow: 'hidden',
+    shadowColor: '#E91E63',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+  headerAccent: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 4,
+    backgroundColor: '#E91E63',
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    marginTop: 4,
+  },
+  headerIconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#FCE4EC',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerIcon: {
+    fontSize: 22,
+  },
   title: {
-    fontSize: 26,
-    fontWeight: '700',
+    fontSize: 22,
+    fontWeight: '800',
     color: '#333',
-    marginBottom: 4,
   },
   subtitle: {
-    fontSize: 15,
+    fontSize: 14,
     color: '#888',
-    marginBottom: 24,
+    marginTop: 2,
+    flexShrink: 1,
+  },
+  selectedPill: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#FCE4EC',
+    borderRadius: 12,
+    paddingVertical: 4,
+    paddingHorizontal: 12,
+    marginTop: 12,
+  },
+  selectedPillText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#E91E63',
+  },
+
+  /* ── Section Headers ── */
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 10,
+    marginTop: 6,
+  },
+  sectionIconCircle: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#FCE4EC',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sectionIcon: {
+    fontSize: 16,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '700',
-    color: '#555',
-    marginTop: 24,
-    marginBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#FFE4E9',
-    paddingBottom: 8,
+    color: '#444',
+    flexShrink: 1,
   },
-  hbInput: {
+  sectionStep: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#C2185B',
+    marginTop: 1,
+  },
+  sectionBadge: {
+    backgroundColor: '#F5F5F5',
+    borderRadius: 8,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+  },
+  sectionBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#AAA',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+
+  /* ── Section Card ── */
+  sectionCard: {
     backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 18,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  emergencyCard: {
+    borderWidth: 1.5,
+    borderColor: '#FFCDD2',
+    backgroundColor: '#FFFAFA',
+  },
+
+  /* ── Hemoglobin ── */
+  hbInput: {
+    backgroundColor: '#FAFAFA',
     borderRadius: 12,
     borderWidth: 1.5,
-    borderColor: '#E0E0E0',
+    borderColor: '#EEEEEE',
     paddingVertical: 14,
     paddingHorizontal: 16,
     fontSize: 16,
     color: '#333',
   },
   hbNote: {
-    fontSize: 13,
+    fontSize: 12,
     color: '#AAA',
-    marginTop: 6,
+    marginTop: 8,
     marginLeft: 4,
+    lineHeight: 17,
+  },
+  hbWarningBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF3E0',
+    borderRadius: 10,
+    padding: 10,
+    marginTop: 10,
+    gap: 8,
+  },
+  hbWarningIcon: {
+    fontSize: 16,
   },
   hbWarning: {
-    fontSize: 14,
-    color: '#F44336',
+    fontSize: 13,
+    color: '#E65100',
     fontWeight: '600',
-    marginTop: 6,
-    marginLeft: 4,
+    flex: 1,
+    flexShrink: 1,
+  },
+
+  /* ── Emergency ── */
+  emergencyNoticeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFEBEE',
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 10,
+    gap: 8,
+  },
+  emergencyNoticeIcon: {
+    fontSize: 16,
   },
   emergencyNote: {
     fontSize: 13,
-    color: '#F44336',
-    fontStyle: 'italic',
-    marginBottom: 8,
-    marginLeft: 4,
+    color: '#D32F2F',
+    fontWeight: '500',
+    flex: 1,
+    flexShrink: 1,
   },
+
+  /* ── Lifestyle ── */
   lifestyleHintText: {
     fontSize: 12,
     color: '#BBB',
-    marginBottom: 8,
-    marginLeft: 4,
+    marginBottom: 10,
+    fontStyle: 'italic',
   },
+
+  /* ── Shared ── */
   miniLabel: {
     fontSize: 14,
     fontWeight: '600',
     color: '#555',
-    marginBottom: 4,
-    marginTop: 4,
+    marginBottom: 6,
+    marginTop: 8,
+  },
+  durationSection: {
+    marginTop: 14,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#F5F5F5',
   },
   chipRow: {
     flexDirection: 'row',
@@ -585,82 +803,90 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   chip: {
-    paddingVertical: 7,
-    paddingHorizontal: 12,
-    borderRadius: 18,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 20,
     borderWidth: 1.5,
-    borderColor: '#E0E0E0',
-    backgroundColor: '#FFF',
+    borderColor: '#EEEEEE',
+    backgroundColor: '#FAFAFA',
   },
   chipActive: {
-    borderColor: '#FFB6C1',
-    backgroundColor: '#FFE4E9',
+    borderColor: '#F48FB1',
+    backgroundColor: '#FCE4EC',
   },
   chipText: {
-    fontSize: 12,
+    fontSize: 13,
     color: '#888',
     fontWeight: '500',
   },
   chipTextActive: {
     color: '#C2185B',
-    fontWeight: '600',
+    fontWeight: '700',
   },
   inlineRow: {
     flexDirection: 'row',
     gap: 12,
+    marginTop: 4,
     marginBottom: 4,
   },
   inlineField: {
     flex: 1,
   },
   miniInput: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 10,
+    backgroundColor: '#FAFAFA',
+    borderRadius: 12,
     borderWidth: 1.5,
-    borderColor: '#E0E0E0',
-    paddingVertical: 10,
-    paddingHorizontal: 12,
+    borderColor: '#EEEEEE',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
     fontSize: 15,
     color: '#333',
   },
   submitBtn: {
-    backgroundColor: '#FFB6C1',
-    borderRadius: 14,
+    backgroundColor: '#E91E63',
+    borderRadius: 16,
     paddingVertical: 18,
+    flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 32,
-    shadowColor: '#FFB6C1',
+    justifyContent: 'center',
+    marginTop: 10,
+    gap: 10,
+    shadowColor: '#E91E63',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 5,
   },
   submitBtnDisabled: {
     opacity: 0.6,
   },
-  submitBtnText: {
+  submitBtnIcon: {
     fontSize: 18,
-    fontWeight: '700',
+  },
+  submitBtnText: {
+    fontSize: 17,
+    fontWeight: '800',
     color: '#FFFFFF',
+    flexShrink: 1,
   },
   detailContainer: {
-    marginLeft: 8,
-    marginBottom: 4,
-    paddingLeft: 12,
-    borderLeftWidth: 2,
-    borderLeftColor: '#FFB6C1',
+    marginLeft: 12,
+    marginBottom: 6,
+    paddingLeft: 14,
+    borderLeftWidth: 3,
+    borderLeftColor: '#F48FB1',
   },
   detailLabel: {
     fontSize: 13,
     fontWeight: '600',
     color: '#C2185B',
     marginTop: 4,
-    marginBottom: 4,
+    marginBottom: 6,
   },
   chipSmall: {
-    paddingHorizontal: 9,
-    paddingVertical: 5,
-    minWidth: 32,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    minWidth: 34,
     alignItems: 'center',
   },
 });

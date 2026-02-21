@@ -5,10 +5,12 @@
  * submission.
  *
  * Shows:
- *   - Risk badge (color-coded level)
- *   - Advice text (localized)
+ *   - Risk badge (color-coded level) with score circle
+ *   - Advice card (localized)
+ *   - ML stats cards
+ *   - AI personalised advice
  *   - Emergency actions (if HIGH risk)
- *   - Option to go back or go home
+ *   - Navigation buttons
  *
  * If requiresEmergency === true:
  *   - Automatically triggers SMS + call prompt
@@ -101,7 +103,6 @@ export default function ResultScreen() {
   // ── Auto-trigger emergency if HIGH risk ──────
   useEffect(() => {
     if (requiresEmergency) {
-      // Small delay so the screen renders first
       const timer = setTimeout(() => {
         handleEmergencyTrigger();
       }, 1000);
@@ -152,31 +153,57 @@ export default function ResultScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <ScrollView contentContainerStyle={styles.container}>
-        {/* Title */}
-        <Text style={styles.title}>{texts.title}</Text>
+      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
 
-        {/* Risk Badge */}
+        {/* ── Header Card ──────────────── */}
+        <View style={styles.headerCard}>
+          <View style={[styles.headerAccent, { backgroundColor: color }]} />
+          <View style={styles.headerRow}>
+            <View style={[styles.headerDot, { backgroundColor: color + '22' }]}>
+              <Text style={styles.headerIcon}>📋</Text>
+            </View>
+            <View style={{ flex: 1, flexShrink: 1 }}>
+              <Text style={styles.title} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{texts.title}</Text>
+              <Text style={styles.headerSource} numberOfLines={1}>
+                {source === 'ml_api'
+                  ? (lang === 'hi' ? 'ML-संचालित विश्लेषण' : 'ML-Powered Analysis')
+                  : (lang === 'hi' ? 'ऑफ़लाइन विश्लेषण' : 'Offline Analysis')}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* ── Risk Badge ───────────────── */}
         <View style={styles.badgeContainer}>
           <RiskBadge level={level} score={score} large />
         </View>
 
-        {/* Advice Card */}
-        <View style={[styles.adviceCard, { borderLeftColor: color }]}>
-          <Text style={styles.adviceTitle}>{texts.adviceTitle}</Text>
+        {/* ── Advice Card ──────────────── */}
+        <View style={styles.adviceCard}>
+          <View style={[styles.adviceAccent, { backgroundColor: color }]} />
+          <View style={styles.adviceHeader}>
+            <Text style={styles.adviceIcon}>💡</Text>
+            <Text style={styles.adviceTitle} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{texts.adviceTitle}</Text>
+          </View>
           <Text style={styles.adviceText}>{advice}</Text>
         </View>
 
-        {/* ML Recommendation (if available) */}
+        {/* ── ML Recommendation (if available) ─ */}
         {recommendationKey && tGlobal[recommendationKey] && (
           <View style={styles.mlRecommendationCard}>
+            <View style={styles.mlRecommendationHeader}>
+              <Text style={styles.mlRecommendationIcon}>🤖</Text>
+              <Text style={styles.mlRecommendationLabel} numberOfLines={1}>
+                {lang === 'hi' ? 'ML अनुशंसा' : 'ML Recommendation'}
+              </Text>
+            </View>
             <Text style={styles.mlRecommendationText}>
               {tGlobal[recommendationKey]}
             </Text>
           </View>
         )}
 
-        {/* Health Score & Confidence Card (ML enriched) */}
+        {/* ── Health Score & Confidence (ML enriched) ─ */}
         {(healthScore != null || mlConfidence != null) && (
           <View style={styles.mlCard}>
             <View style={styles.mlBadge}>
@@ -187,30 +214,36 @@ export default function ResultScreen() {
             <View style={styles.mlRow}>
               {healthScore != null && (
                 <View style={styles.mlStat}>
-                  <Text style={[styles.mlStatValue, { color: HEALTH_GRADE_COLORS[healthGrade] || '#333' }]}>
-                    {healthScore}
-                  </Text>
-                  <Text style={styles.mlStatLabel}>
+                  <View style={[styles.mlStatCircle, { borderColor: HEALTH_GRADE_COLORS[healthGrade] || '#E0E0E0' }]}>
+                    <Text style={[styles.mlStatValue, { color: HEALTH_GRADE_COLORS[healthGrade] || '#333' }]}>
+                      {healthScore}
+                    </Text>
+                  </View>
+                  <Text style={styles.mlStatLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
                     {tGlobal.healthScoreLabel || 'Health Score'}
                   </Text>
                 </View>
               )}
               {healthGrade && (
                 <View style={styles.mlStat}>
-                  <Text style={[styles.mlStatValue, { color: HEALTH_GRADE_COLORS[healthGrade] || '#333' }]}>
-                    {healthGrade}
-                  </Text>
-                  <Text style={styles.mlStatLabel}>
+                  <View style={[styles.mlStatCircle, { borderColor: HEALTH_GRADE_COLORS[healthGrade] || '#E0E0E0' }]}>
+                    <Text style={[styles.mlStatValue, { color: HEALTH_GRADE_COLORS[healthGrade] || '#333' }]}>
+                      {healthGrade}
+                    </Text>
+                  </View>
+                  <Text style={styles.mlStatLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
                     {tGlobal.healthGrade || 'Grade'}
                   </Text>
                 </View>
               )}
               {mlConfidence != null && (
                 <View style={styles.mlStat}>
-                  <Text style={styles.mlStatValue}>
-                    {Math.round(mlConfidence * 100)}%
-                  </Text>
-                  <Text style={styles.mlStatLabel}>
+                  <View style={[styles.mlStatCircle, { borderColor: '#6366F1' }]}>
+                    <Text style={[styles.mlStatValue, { color: '#6366F1' }]}>
+                      {Math.round(mlConfidence * 100)}%
+                    </Text>
+                  </View>
+                  <Text style={styles.mlStatLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
                     {tGlobal.confidenceLabel || 'Confidence'}
                   </Text>
                 </View>
@@ -219,11 +252,16 @@ export default function ResultScreen() {
           </View>
         )}
 
-        {/* AI Symptom Advice */}
+        {/* ── AI Symptom Advice ────────── */}
         <View style={styles.aiCard}>
-          <Text style={styles.aiCardLabel}>
-            {lang === 'hi' ? 'AI स्वास्थ्य सलाह' : 'AI Health Advice'}
-          </Text>
+          <View style={styles.aiHeader}>
+            <View style={styles.aiDot}>
+              <Text style={styles.aiDotIcon}>✨</Text>
+            </View>
+            <Text style={styles.aiCardLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+              {lang === 'hi' ? 'AI स्वास्थ्य सलाह' : 'AI Health Advice'}
+            </Text>
+          </View>
           {aiLoading ? (
             <View style={styles.aiLoading}>
               <ActivityIndicator size="small" color="#C2185B" />
@@ -236,11 +274,16 @@ export default function ResultScreen() {
           ) : null}
         </View>
 
-        {/* Emergency Actions (only for HIGH risk) */}
+        {/* ── Emergency Actions (only for HIGH risk) ─ */}
         {requiresEmergency && (
           <View style={styles.emergencyContainer}>
-            <Text style={styles.emergencyTitle}>{texts.emergencyTitle}</Text>
-            <Text style={styles.emergencyDesc}>{texts.emergencyDesc}</Text>
+            <View style={styles.emergencyHeader}>
+              <Text style={styles.emergencyIcon}>🚨</Text>
+              <View style={{ flex: 1, flexShrink: 1 }}>
+                <Text style={styles.emergencyTitle} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{texts.emergencyTitle}</Text>
+                <Text style={styles.emergencyDesc} numberOfLines={3}>{texts.emergencyDesc}</Text>
+              </View>
+            </View>
 
             {/* Send SMS Button */}
             <TouchableOpacity
@@ -252,7 +295,8 @@ export default function ResultScreen() {
               activeOpacity={0.7}
               disabled={smsStatus === 'sent'}
             >
-              <Text style={styles.emergencyBtnText}>
+              <Text style={styles.emergencyBtnIcon}>{smsStatus === 'sent' ? '✅' : '📤'}</Text>
+              <Text style={styles.emergencyBtnText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
                 {smsStatus === 'sent'
                   ? texts.smsSent
                   : smsStatus === 'failed'
@@ -267,19 +311,21 @@ export default function ResultScreen() {
               onPress={() => promptEmergencyCall(lang)}
               activeOpacity={0.7}
             >
-              <Text style={styles.callBtnText}>{texts.call112}</Text>
+              <Text style={styles.callBtnIcon}>📞</Text>
+              <Text style={styles.callBtnText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{texts.call112}</Text>
             </TouchableOpacity>
           </View>
         )}
 
-        {/* Navigation Buttons */}
+        {/* ── Navigation Buttons ─────── */}
         <View style={styles.navBtns}>
           <TouchableOpacity
             style={styles.navBtn}
             onPress={() => router.push('/symptoms')}
             activeOpacity={0.7}
           >
-            <Text style={styles.navBtnText}>{texts.newAssessment}</Text>
+            <Text style={styles.navBtnIcon}>🔄</Text>
+            <Text style={styles.navBtnText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{texts.newAssessment}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -287,7 +333,8 @@ export default function ResultScreen() {
             onPress={() => router.replace('/(tabs)')}
             activeOpacity={0.7}
           >
-            <Text style={[styles.navBtnText, styles.navBtnTextSecondary]}>
+            <Text style={styles.navBtnIcon}>🏠</Text>
+            <Text style={[styles.navBtnText, styles.navBtnTextSecondary]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
               {texts.goHome}
             </Text>
           </TouchableOpacity>
@@ -303,66 +350,153 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF5F5',
   },
   container: {
-    padding: 20,
+    padding: 18,
     paddingBottom: 40,
   },
-  title: {
-    fontSize: 26,
-    fontWeight: '700',
-    color: '#333',
-    textAlign: 'center',
-    marginBottom: 24,
-    marginTop: 12,
-  },
-  badgeContainer: {
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  adviceCard: {
+
+  /* ── Header Card ── */
+  headerCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    padding: 20,
-    borderLeftWidth: 5,
-    marginBottom: 24,
+    borderRadius: 18,
+    padding: 18,
+    marginBottom: 20,
+    overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
-    shadowRadius: 4,
+    shadowRadius: 8,
     elevation: 2,
   },
-  adviceTitle: {
+  headerAccent: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 4,
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginTop: 2,
+  },
+  headerDot: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerIcon: {
+    fontSize: 20,
+  },
+  title: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#333',
+  },
+  headerSource: {
+    fontSize: 12,
+    color: '#999',
+    fontWeight: '600',
+    marginTop: 2,
+  },
+
+  /* ── Badge ── */
+  badgeContainer: {
+    alignItems: 'center',
+    marginBottom: 22,
+  },
+
+  /* ── Advice Card ── */
+  adviceCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 18,
+    marginBottom: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  adviceAccent: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    bottom: 0,
+    width: 5,
+    borderTopLeftRadius: 16,
+    borderBottomLeftRadius: 16,
+  },
+  adviceHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 10,
+    marginLeft: 8,
+  },
+  adviceIcon: {
     fontSize: 16,
+  },
+  adviceTitle: {
+    fontSize: 15,
     fontWeight: '700',
     color: '#555',
-    marginBottom: 8,
+    flexShrink: 1,
   },
   adviceText: {
-    fontSize: 15,
+    fontSize: 14,
     color: '#666',
-    lineHeight: 22,
+    lineHeight: 21,
+    marginLeft: 8,
   },
+
+  /* ── ML Recommendation ── */
   mlRecommendationCard: {
     backgroundColor: '#F0F9FF',
-    borderRadius: 12,
+    borderRadius: 14,
     padding: 16,
     marginBottom: 16,
     borderLeftWidth: 4,
     borderLeftColor: '#3B82F6',
+  },
+  mlRecommendationHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  mlRecommendationIcon: {
+    fontSize: 16,
+  },
+  mlRecommendationLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#1E40AF',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    flexShrink: 1,
   },
   mlRecommendationText: {
     fontSize: 14,
     color: '#1E40AF',
     lineHeight: 20,
   },
+
+  /* ── ML Stats Card ── */
   mlCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 24,
+    borderRadius: 16,
+    padding: 18,
+    marginBottom: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
     elevation: 2,
   },
   mlBadge: {
@@ -371,10 +505,10 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingVertical: 4,
     paddingHorizontal: 10,
-    marginBottom: 12,
+    marginBottom: 14,
   },
   mlBadgeText: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '700',
     color: '#6366F1',
     letterSpacing: 0.5,
@@ -386,120 +520,197 @@ const styles = StyleSheet.create({
   },
   mlStat: {
     alignItems: 'center',
+    flex: 1,
+  },
+  mlStatCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    borderWidth: 3,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FAFAFA',
+    marginBottom: 8,
   },
   mlStatValue: {
-    fontSize: 28,
+    fontSize: 20,
     fontWeight: '800',
     color: '#333',
   },
   mlStatLabel: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#888',
-    marginTop: 4,
+    fontWeight: '500',
+    textAlign: 'center',
+    flexShrink: 1,
   },
+
+  /* ── Emergency ── */
   emergencyContainer: {
-    backgroundColor: '#FFF0F0',
-    borderRadius: 14,
-    padding: 20,
+    backgroundColor: '#FFFAFA',
+    borderRadius: 16,
+    padding: 18,
     borderWidth: 2,
-    borderColor: '#F44336',
-    marginBottom: 24,
+    borderColor: '#EF5350',
+    marginBottom: 20,
   },
-  emergencyTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#D32F2F',
-    marginBottom: 8,
-  },
-  emergencyDesc: {
-    fontSize: 14,
-    color: '#D32F2F',
-    lineHeight: 20,
+  emergencyHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
     marginBottom: 16,
   },
+  emergencyIcon: {
+    fontSize: 28,
+    marginTop: 2,
+  },
+  emergencyTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#D32F2F',
+    flexShrink: 1,
+  },
+  emergencyDesc: {
+    fontSize: 13,
+    color: '#E53935',
+    lineHeight: 19,
+    marginTop: 4,
+    flexShrink: 1,
+  },
   emergencyBtn: {
-    backgroundColor: '#F44336',
-    borderRadius: 12,
+    backgroundColor: '#EF5350',
+    borderRadius: 14,
     paddingVertical: 14,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 10,
+    gap: 8,
   },
   emergencyBtnSent: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#43A047',
+  },
+  emergencyBtnIcon: {
+    fontSize: 16,
   },
   emergencyBtnText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
     color: '#FFFFFF',
+    flexShrink: 1,
   },
   callBtn: {
     backgroundColor: '#FF9800',
-    borderRadius: 12,
+    borderRadius: 14,
     paddingVertical: 14,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  callBtnIcon: {
+    fontSize: 16,
   },
   callBtnText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
     color: '#FFFFFF',
+    flexShrink: 1,
   },
+
+  /* ── Navigation Buttons ── */
   navBtns: {
     gap: 12,
   },
   navBtn: {
-    backgroundColor: '#FFB6C1',
-    borderRadius: 14,
+    backgroundColor: '#E91E63',
+    borderRadius: 16,
     paddingVertical: 16,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    shadowColor: '#E91E63',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  navBtnIcon: {
+    fontSize: 16,
   },
   navBtnText: {
     fontSize: 16,
     fontWeight: '700',
     color: '#FFFFFF',
+    flexShrink: 1,
   },
   navBtnSecondary: {
-    backgroundColor: 'transparent',
+    backgroundColor: '#FFFFFF',
     borderWidth: 2,
-    borderColor: '#FFB6C1',
+    borderColor: '#E91E63',
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    elevation: 1,
   },
   navBtnTextSecondary: {
-    color: '#FFB6C1',
+    color: '#E91E63',
   },
+
+  /* ── AI Card ── */
   aiCard: {
-    backgroundColor: '#FFF5F5',
-    borderRadius: 14,
-    padding: 20,
-    marginBottom: 24,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 18,
+    marginBottom: 20,
     borderWidth: 1.5,
-    borderColor: '#FFB6C1',
-    shadowColor: '#C2185B',
+    borderColor: '#F8BBD0',
+    shadowColor: '#E91E63',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.07,
-    shadowRadius: 6,
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
     elevation: 2,
   },
+  aiHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 12,
+  },
+  aiDot: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#FCE4EC',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  aiDotIcon: {
+    fontSize: 14,
+  },
   aiCardLabel: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '700',
     color: '#C2185B',
-    letterSpacing: 0.8,
+    letterSpacing: 0.6,
     textTransform: 'uppercase',
-    marginBottom: 12,
+    flexShrink: 1,
   },
   aiLoading: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    paddingVertical: 6,
+    paddingVertical: 8,
   },
   aiLoadingText: {
     fontSize: 13,
-    color: '#888',
+    color: '#999',
     fontStyle: 'italic',
+    flexShrink: 1,
   },
   aiAdviceText: {
-    fontSize: 15,
+    fontSize: 14,
     color: '#444',
-    lineHeight: 23,
+    lineHeight: 22,
   },
 });
