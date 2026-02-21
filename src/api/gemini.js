@@ -9,9 +9,9 @@ const API_KEY =
 
 const genAI = new GoogleGenerativeAI(API_KEY);
 
-// Models in priority order — fast/cheap first, more capable as fallback
-// Using confirmed available models only
-const MODELS = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'];
+// Models in priority order — only gemini-2.0-flash is available
+// Other models may return 404 on free/basic tiers
+const MODELS = ['gemini-2.0-flash'];
 
 /**
  * Strip common Markdown syntax so plain <Text> renders cleanly.
@@ -68,10 +68,17 @@ async function callWithFallback(prompt, maxRetries = 2, maxTokens = 256, history
         const status = error?.status || error?.response?.status;
         const msg = error?.message || '';
 
-        // 429 = rate limit / quota exhausted → try next model
+        // 429 = rate limit / quota exhausted → retry with longer delay
         if (status === 429 || msg.includes('429') || msg.includes('quota')) {
-          console.warn(`[Gemini] ${modelName} quota hit, trying next model...`);
-          break; // skip retries, move to next model
+          if (attempt < maxRetries) {
+            const delay = 10000; // 10 seconds for quota
+            console.warn(`[Gemini] ${modelName} quota hit, retrying in ${delay}ms...`);
+            await new Promise((r) => setTimeout(r, delay));
+            continue; // retry same model after delay
+          } else {
+            console.warn(`[Gemini] ${modelName} quota exhausted after retries, trying next model...`);
+            break; // move to next model after max retries
+          }
         }
 
         // 404 = model not found / deprecated → try next model

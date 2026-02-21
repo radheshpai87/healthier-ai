@@ -21,7 +21,7 @@ module.exports = ({ config }) => {
     extra: {
       ...config.extra,
       // Inject secrets from environment at build / dev-server time
-      geminiApiKey: process.env.GEMINI_API_KEY || '',
+      geminiApiKey: process.env.GEMINI_API_KEY || config.extra?.geminiApiKey || '',
       // BACKEND_URL is written by start-all.sh at runtime; fallback via env
       backendUrl: process.env.BACKEND_URL || config.extra?.backendUrl || '',
     },
