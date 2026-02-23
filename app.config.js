@@ -8,7 +8,7 @@
  * extra dotenv package is needed.
  *
  * .env keys used:
- *   GEMINI_API_KEY   — Google Gemini API key
+ *   GROQ_API_KEY     — Groq API key
  *   BACKEND_URL      — overrides the auto-detected LAN URL
  * ─────────────────────────────────────────────
  */
@@ -21,7 +21,7 @@ module.exports = ({ config }) => {
     extra: {
       ...config.extra,
       // Inject secrets from environment at build / dev-server time
-      geminiApiKey: process.env.GEMINI_API_KEY || config.extra?.geminiApiKey || '',
+      groqApiKey: process.env.GROQ_API_KEY || config.extra?.groqApiKey || '',
       // BACKEND_URL is written by start-all.sh at runtime; fallback via env
       backendUrl: process.env.BACKEND_URL || config.extra?.backendUrl || '',
     },

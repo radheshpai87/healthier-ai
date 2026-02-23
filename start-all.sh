@@ -59,21 +59,37 @@ echo -e "${GREEN}Detected LAN IP: ${CYAN}${LAN_IP}${NC}"
 echo -e "${GREEN}Backend URL:     ${CYAN}${BACKEND_URL}${NC}"
 echo ""
 
-# ── Update app.json with current LAN IP ────────
-if command -v python3 &>/dev/null; then
+# ── Update app.json with current LAN IP (Node.js — works on Windows/macOS/Linux) ────────
+if command -v node &>/dev/null; then
+    node -e "
+      const fs = require('fs');
+      const path = require('path');
+      const file = path.join(process.env.ROOT_DIR || '.', 'app.json');
+      try {
+        const config = JSON.parse(fs.readFileSync(file, 'utf8'));
+        config.expo.extra.backendUrl = process.env.BACKEND_URL;
+        fs.writeFileSync(file, JSON.stringify(config, null, 2) + '\\n');
+        console.log('  Updated app.json -> backendUrl = ' + process.env.BACKEND_URL);
+      } catch (e) {
+        console.error('  Warning: could not update app.json:', e.message);
+      }
+    " ROOT_DIR="${ROOT_DIR}" BACKEND_URL="${BACKEND_URL}"
+    echo ""
+elif command -v python3 &>/dev/null; then
     python3 -c "
-import json, sys
+import json, sys, os
 try:
-    with open('${ROOT_DIR}/app.json', 'r') as f:
-        config = json.load(f)
-    config['expo']['extra']['backendUrl'] = '${BACKEND_URL}'
-    with open('${ROOT_DIR}/app.json', 'w') as f:
-        json.dump(config, f, indent=2)
-        f.write('\n')
-    print('  Updated app.json -> backendUrl = ${BACKEND_URL}')
+    f = os.path.join(os.environ.get('ROOT_DIR', '.'), 'app.json')
+    with open(f, 'r') as fh:
+        config = json.load(fh)
+    config['expo']['extra']['backendUrl'] = os.environ.get('BACKEND_URL', '')
+    with open(f, 'w') as fh:
+        json.dump(config, fh, indent=2)
+        fh.write('\n')
+    print('  Updated app.json -> backendUrl = ' + os.environ.get('BACKEND_URL', ''))
 except Exception as e:
     print(f'  Warning: Could not update app.json: {e}', file=sys.stderr)
-"
+" ROOT_DIR="${ROOT_DIR}" BACKEND_URL="${BACKEND_URL}"
     echo ""
 fi
 

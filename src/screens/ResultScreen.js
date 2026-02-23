@@ -34,7 +34,7 @@ import RiskBadge from '../components/RiskBadge';
 import { triggerEmergency, sendEmergencySMS, promptEmergencyCall } from '../services/emergencyService';
 import { RISK_LEVELS, HEALTH_GRADE_COLORS } from '../utils/constants';
 import { translations } from '../constants/translations';
-import { generateSymptomAdvice } from '../api/gemini';
+import { generateSymptomAdvice } from '../api/groq';
 import { saveLastRiskResult } from '../services/storageService';
 
 // ── Translations ───────────────────────────────

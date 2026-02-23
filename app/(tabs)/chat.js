@@ -15,7 +15,7 @@ import { Send, Volume2 } from 'lucide-react-native';
 import * as Speech from 'expo-speech';
 import { useLanguage } from '../../src/context/LanguageContext';
 import { translations } from '../../src/constants/translations';
-import { getHealthAdvice } from '../../src/api/gemini';
+import { getHealthAdvice } from '../../src/api/groq';
 import { scopedKey } from '../../src/services/authService';
 import { getLastRiskResult } from '../../src/services/storageService';
 import AsyncStorage from '@react-native-async-storage/async-storage';

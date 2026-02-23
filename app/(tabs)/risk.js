@@ -48,7 +48,7 @@ import {
   getSymptoms as getSymptomLogs,
 } from '../../src/services/HealthDataLogger';
 import { getLastRiskResult } from '../../src/services/storageService';
-import { generateSymptomAdvice } from '../../src/api/gemini';
+import { generateSymptomAdvice } from '../../src/api/groq';
 import { getSyncStatus, syncPendingData } from '../../src/services/syncService';
 
 const { width } = Dimensions.get('window');

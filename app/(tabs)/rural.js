@@ -7,7 +7,7 @@
  *   • ML-powered risk assessment (enhancedRiskAssessment)
  *   • Health score calculation (calculateHealthScore)
  *   • Daily health logging (logDailyHealth)
- *   • AI advice via Gemini (generateSymptomAdvice, getHealthAdvice)
+ *   • AI advice via Groq (generateSymptomAdvice, getHealthAdvice)
  *   • Emergency SMS + GPS (triggerEmergency, sendEmergencySMS)
  *   • Location services (getSavedLocation)
  *   • Offline sync (syncPendingData)
@@ -62,7 +62,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLanguage } from '../../src/context/LanguageContext';
 import { useAuth } from '../../src/context/AuthContext';
 import { useCycleTracker } from '../../src/hooks/useCycleTracker';
-import { getHealthAdvice, generateSymptomAdvice } from '../../src/api/gemini';
+import { getHealthAdvice, generateSymptomAdvice } from '../../src/api/groq';
 import {
   getUserProfile,
   calculateHealthScore,
@@ -353,7 +353,7 @@ export default function RuralIVRScreen() {
   const fetchAdvice = async () => {
     setLoading(true);
     setAdviceText('');
-    log('IVR', hi ? '\u23F3 Gemini AI \u0938\u0947 \u0938\u0932\u093E\u0939 \u0932\u0947 \u0930\u0939\u0947 \u0939\u0948\u0902\u2026' : '\u23F3 Fetching advice from Gemini AI\u2026');
+    log('IVR', hi ? '\u23F3 Groq AI \u0938\u0947 \u0938\u0932\u093E\u0939 \u0932\u0947 \u0930\u0939\u0947 \u0939\u0948\u0902\u2026' : '\u23F3 Fetching advice from Groq AI\u2026');
     try {
       const profile = await getUserProfile();
       const location = await getLocationDisplayName();
@@ -442,7 +442,7 @@ export default function RuralIVRScreen() {
         language,
       });
 
-      // Get AI advice via Gemini
+      // Get AI advice via Groq
       let aiAdvice = '';
       try {
         const levelForAdvice = riskResult.level === 'HIGH' ? 'High' : riskResult.level === 'MODERATE' ? 'Medium' : 'Low';

@@ -147,7 +147,7 @@ healthier-ai/
 │   ├── hooks/
 │   │   └── useCycleTracker.js
 │   └── api/
-│       └── gemini.js
+│       └── groq.js
 │
 ├── backend/                      # Express + MongoDB backend
 │   ├── server.js
